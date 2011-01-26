@@ -8,7 +8,7 @@ WHERE (((main.period) > 6) AND ((main.stake) > 10 AND (main.stake) < 78)
 
 DROP TABLE IF EXISTS queries.mcdb2;
 CREATE TABLE queries.mcdb2 
-SELECT mcdb1.year AS YEAR, mcdb1.species AS SP, COUNT(mcdb1.ID) AS AB
+SELECT mcdb1.year AS YEAR, mcdb1.species AS SP, COUNT(mcdb1.ID) AS AB, ROUND(AVG(mcdb1.weight), 1) AS MASS
 FROM queries.mcdb1
 GROUP BY mcdb1.year, mcdb1.species;
 
