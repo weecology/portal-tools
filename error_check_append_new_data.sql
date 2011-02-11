@@ -1,5 +1,5 @@
 /* add new data file to queries database */
-/* this step is best accomplished via the mysql command line in a putty session connected to serenity  */
+
 DROP TABLE IF EXISTS queries.newdat;
 CREATE TABLE queries.newdat
 ( 
@@ -10,30 +10,28 @@ CREATE TABLE queries.newdat
     plot TINYINT(4), 
     note1 VARCHAR(255) DEFAULT NULL, 
     stake DOUBLE DEFAULT NULL, 
-    sp VARCHAR(255) DEFAULT NULL,
+    species VARCHAR(255) DEFAULT NULL,
     sex VARCHAR(255) DEFAULT NULL,
-    male1 VARCHAR(255) DEFAULT NULL,
-    male2 VARCHAR(255) DEFAULT NULL,
-    male3 VARCHAR(255) DEFAULT NULL,
-    female1 VARCHAR(255) DEFAULT NULL,
-    female2 VARCHAR(255) DEFAULT NULL,
-    female3 VARCHAR(255) DEFAULT NULL,
-    female4 VARCHAR(255) DEFAULT NULL,
+    age VARCHAR(255) DEFAULT NULL,
+    reprod VARCHAR(255) DEFAULT NULL,
+    testes VARCHAR(255) DEFAULT NULL,
+    vagina VARCHAR(255) DEFAULT NULL,
+    pregnant VARCHAR(255) DEFAULT NULL,
+    nipples VARCHAR(255) DEFAULT NULL,
+    lactation VARCHAR(255) DEFAULT NULL,
     hfl DOUBLE DEFAULT NULL,
     wgt DOUBLE DEFAULT NULL,
-    rtag VARCHAR(255) DEFAULT NULL,
+    tag VARCHAR(255) DEFAULT NULL,
     note2 VARCHAR(255) DEFAULT NULL,
     ltag VARCHAR(255) DEFAULT NULL,
     note3 VARCHAR(255) DEFAULT NULL,
     prevrt VARCHAR(255) DEFAULT NULL,
-    note4 VARCHAR(255) DEFAULT NULL,
     prevlet VARCHAR(255) DEFAULT NULL,
     note5 VARCHAR(255) DEFAULT NULL,
     nestdir VARCHAR(255) DEFAULT NULL,
     neststk DOUBLE DEFAULT NULL,
-    note6 VARCHAR(255) DEFAULT NULL,
-    note7 VARCHAR(255) DEFAULT NULL,
-    note8 VARCHAR(255) DEFAULT NULL
+    note4 VARCHAR(255) DEFAULT NULL,
+    note5 VARCHAR(255) DEFAULT NULL
 ) ;
 
 LOAD DATA LOCAL INFILE '/home/kate/data/newdat388.csv'
@@ -49,17 +47,17 @@ WHERE Rodents.period > ((SELECT Max(Rodents.period) FROM Portal.Rodents) - 60);
 ALTER TABLE queries.newrata ADD PRIMARY KEY (ID);
 
 /* use newrata table to check that all old tags are NOT indicated with an asterisk */
-SELECT newdat.period, newdat.plot, newdat.stake, newdat.sp, newdat.sex, newdat.rtag, newdat.note2, newdat.ltag, newdat.note3
+SELECT newdat.period, newdat.plot, newdat.stake, newdat.species, newdat.sex, newdat.rtag, newdat.note2, newdat.ltag, newdat.note3
 FROM queries.newdat LEFT JOIN queries.newrata ON newdat.rtag = newrata.rtag
 WHERE newrata.rtag > 0;
 
 /* use newrata table to check that all new RIGHT tags are indicated with an asterisk */
-SELECT newdat.period, newdat.plot, newdat.stake, newdat.sp, newdat.sex, newdat.rtag, newdat.note2, newdat.ltag, newdat.note3
+SELECT newdat.period, newdat.plot, newdat.stake, newdat.species, newdat.sex, newdat.rtag, newdat.note2, newdat.ltag, newdat.note3
 FROM queries.newdat LEFT JOIN queries.newrata USING (rtag)
 WHERE newrata.rtag IS NULL AND newdat.rtag <> '';
 
 /* use newrata table to check that all new LEFT tags are indicated with an asterisk */
-SELECT newdat.period, newdat.plot, newdat.stake, newdat.sp, newdat.sex, newdat.rtag, newdat.note2, newdat.ltag, newdat.note3
+SELECT newdat.period, newdat.plot, newdat.stake, newdat.species, newdat.sex, newdat.rtag, newdat.note2, newdat.ltag, newdat.note3
 FROM queries.newdat LEFT JOIN queries.newrata USING (ltag)
 WHERE newrata.ltag IS NULL AND newdat.ltag <> '';
 
@@ -69,10 +67,10 @@ WHERE newrata.ltag IS NULL AND newdat.ltag <> '';
 SELECT * FROM  queries.newrata;
 
 /* use newrata table to check for consistency in species and sex for each tagged individual */
-SELECT newrata.period, newrata.plot, newdat.plot, newrata.sp, newdat.sp AS new_sp, newrata.sex, 
+SELECT newrata.period, newrata.plot, newdat.plot, newrata.species, newdat.species AS new_sp, newrata.sex, 
 newdat.sex AS new_sex, newrata.rtag
 FROM queries.newrata INNER JOIN queries.newdat USING (rtag)
-WHERE ((newrata.sp<>newdat.sp) AND (newrata.rtag=newdat.rtag)) OR ((newrata.sex <> newdat.sex));
+WHERE ((newrata.species<>newdat.species) AND (newrata.rtag=newdat.rtag)) OR ((newrata.sex <> newdat.sex));
 
 /*Query Results
 -	the output will include IDs for which the new data have disparate info regarding species of sex 
@@ -81,6 +79,7 @@ WHERE ((newrata.sp<>newdat.sp) AND (newrata.rtag=newdat.rtag)) OR ((newrata.sex 
 -	after making all corrections, rerun query to ensure accuracy */
 
 /* Add ID column to clean newdat that starts with the next integer */
+/* This step shouldn't be necessary if the Rodents.ID column is properly formatted as AUTO_INCREMENT */
 ALTER TABLE queries.newdat
 ADD ID2 INT AUTO_INCREMENT PRIMARY KEY FIRST;
 ALTER TABLE queries.newdat ADD ID INT FIRST; 
