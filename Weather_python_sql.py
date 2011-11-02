@@ -1,6 +1,6 @@
 # Weather Data for Portal
 import numpy as np
-import datetime
+import calendar
 import MySQLdb as dbapi
 
 """What needs to happen when entering WEATHER data:
@@ -28,15 +28,28 @@ def data_to_list(data_line):
     return datalist
     
 def add_tempSoil(data_line):
-    '''adds a NULL item to the data line. This will go in the tempSoil column later.'''
-    return data_line.append('NULL')
+    '''adds an empty string to the data line. This will go in the tempSoil column later.'''
+    return data_line.append('')
 
-def add_date(data_line): #FIX ME
-    '''Converts Julian Day to two items: month and day. Appends these to the data_line.'''
-    convert Julian day to month and day
-    data_line.append(month)
-    data_line.append(day)
-    return data_line
+def jday2caldates(data_line):
+    '''takes a year and a julian day (range(0,366)) and returns a 
+    calendar month and day. defines a list of months and days for both year types
+    on which to index the julian day to calendar day and month.'''
+    if calendar.isleap(data_line[1])==True:
+        days = sum([range(1,32), range(1,30), range(1,32), range(1,31), range(1,32), range(1,31),range(1,32), range(1,32), range(1,31),range(1,32), range(1,31),range(1,32)],[])
+        months = sum([[1]*31,[2]*29,[3]*31,[4]*30,[5]*31,[6]*30,[7]*31,[8]*31,[9]*30,[10]*31,[11]*30,[12]*31],[])
+        cal_day = days[int(data_line[2]) - 1]
+        cal_month = months[int(data_line[2]) - 1]
+        data_line.extend([cal_month, cal_day])
+        return data_line
+    else :
+        days = sum([range(1,32), range(1,29), range(1,32), range(1,31), range(1,32), range(1,31),range(1,32), range(1,32), range(1,31),range(1,32), range(1,31),range(1,32)],[])
+        months = sum([[1]*31,[2]*28,[3]*31,[4]*30,[5]*31,[6]*30,[7]*31,[8]*31,[9]*30,[10]*31,[11]*30,[12]*31],[])
+        cal_day = days[int(data_line[2]) - 1]
+        cal_month = months[int(data_line[2]) - 1]
+        data_line.extend([cal_month, cal_day])
+        return data_line
+
     
 def rearrange_cols(data_line):
     '''where order of data_line is: 
@@ -54,8 +67,8 @@ def prepare_data(data_line):
     is_battery = is_battery_reading(data_line)
     if is_battery == 'N':
         data_line = data_to_list(data_line)
-        data_line = add_tempSoil(data_line)
-        data_line = add_date(data_line)
+        add_tempSoil(data_line)
+        data_line = jday2caldates(data_line)
         data_line = rearrange_cols(data_line)
         return data_line
     else:
@@ -72,6 +85,7 @@ def compile_weather_data(data):
         wx = prepare_data(line)
         if len(wx) > 1: 
             weather_data.append(wx)
+    return weather_data
             
 def save_weather_file(data, filename):
     '''saves weather as a csv file to a shared location. input the new datafile
@@ -98,16 +112,13 @@ save_weather_file(weather_to_add, 'weathperiodcode.csv')
 
 #DATABASE STUFF: open file to append to database
 database = 'loc/weather_db.sqlite'
-
-con = dbapi.connect("""host = 'serenity.bluezone.usu.edu',
+server_login = """host = 'serenity.bluezone.usu.edu',
                     port = 1995,
                     user = sarahsupp,
-                    passwd = yourpassword""")
+                    passwd = yourpassword"""
 
+con = dbapi.connect(server_login)
 cur = con.cursor()
-
-#locate new weather file     FIX ME!!
-weatherFile = 'loc/weathXXX.csv'
 
 cur.execute(USE weather) #or whatever the name of portal weather database is
 cur.execute("DROP TABLE IF EXISTS weath")
@@ -122,7 +133,7 @@ cur.execute("""CREATE TABLE queries.weath
     Precipiation(mm) FLOAT
 )""")
 
-cur.execute("""LOAD DATA LOCAL INFILE weatherFile
+cur.execute("""LOAD DATA LOCAL INFILE weather_to_add
 INTO TABLE queries.weath
 FIELDS TERMINATED BY ',' ENCLOSED BY '"'
 IGNORE 0 LINES""")
@@ -133,5 +144,6 @@ cur.execute("INSERT INTO Portal.Rodents SELECT newdat.* FROM queries.newdat")
 con.commit()
 
 # run a query to add daily data to 'Daily' table in database 
+
 
 # run a query to add monthly data to 'Monthly table in database
