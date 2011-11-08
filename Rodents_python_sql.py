@@ -3,13 +3,26 @@ import numpy as np
 import csv
 import MySQLdb as dbapi
 
+# Functions:
+def save_data(data, new_filename):
+    '''input the list of data that should be saved and a string with the new filename
+    for example, newdat404.csv'''
+    data_file = open(new_filename,'wb') 
+    w = csv.writer(data_file,delimiter=',')
+    w.writerows(data)
+    data_file.close()
+
+''' Data should be in a csv file titles newdatXXXa.csv where XXX should be 
+filled in with the period code and a refers to the initials of the person who
+entered the data'''     
+filename1 = input('please enter location of data entered by recorder #1: ')
+filename2 = input('please enter location of data entered by recorder #2: ')
+
+
 database = 'F:/adv_prog/Assn4/portal_mammals_fake.sqlite'
 
 con = dbapi.connect(database)
 cur = con.cursor()
-
-filename1 = 'loc/newdatXXXa.csv'
-filename2 = 'loc/newdatXXXb.csv'
 
 # PART ONE: DATA ENTRY ERROR CHECKING !!FIXME
 # before importing, make sure that both files have the same number of rows and are input in the same order
