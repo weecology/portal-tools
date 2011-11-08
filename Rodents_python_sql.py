@@ -12,38 +12,47 @@ def save_data(data, new_filename):
     w.writerows(data)
     data_file.close()
 
+def compare_lines(line1, line2):
+    if line1 == line2:
+        return line1
+    elif line1 != line2:
+        opt1 = line1
+        opt2 = line2
+        print 'opt1 = ', line1, ', opt2 = ', line2, ', or enter a new data line'
+        use_data = input('please enter correct data: ')
+        return use_data
+    
+# PART ONE: DATA ENTRY ERROR CHECKING 
+# before importing, make sure that both files have the same number of rows and are input in the same order
+    
 ''' Data should be in a csv file titles newdatXXXa.csv where XXX should be 
 filled in with the period code and a refers to the initials of the person who
 entered the data'''     
+print ('Before importing data, make sure both files have the same number of rows and are in the same order!')
 filename1 = input('please enter location of data entered by recorder #1: ')
 filename2 = input('please enter location of data entered by recorder #2: ')
 
+newdat1 = np.genfromtxt(filename1, dtype = None, delimiter = ',', skip_header = 1)
+newdat2 = np.genfromtxt(filename2, dtype = None, delimiter = ',', skip_header = 1)
+
+# compare double-entered data and write a new datafile to use
+rows = range(len(newdat1))
+newdata = []
+for row in rows:
+    next_line = compare_lines(newdat1[row], newdat2[row])
+    newdata.append(next_line)
+
+# Write compared_data to a csv file to be saved in the Portal folders.
+new_filename = input('What do you want to call the new file?: ')
+save_data(newdata, new_filename)
+
+# Use compared data to query the database before appending
 
 database = 'F:/adv_prog/Assn4/portal_mammals_fake.sqlite'
 
 con = dbapi.connect(database)
 cur = con.cursor()
 
-# PART ONE: DATA ENTRY ERROR CHECKING !!FIXME
-# before importing, make sure that both files have the same number of rows and are input in the same order
-# compare double-entered data and write a new datafile to use
-newdat1 = genfromtxt(filename1,...)
-newdat2 = genfromtxt(filename2,...)
-
-rows = range(len(newdat1))
-newdata = []
-for row in rows:
-    if newdat1[row] == newdat2[row]:
-        newdata.append(newdat1[row])
-    if newdat1[row] != newdat2[row]:
-        opt1 = newdat1[row]
-        opt2 = newdat2[row]
-        print 'opt1 = ', newdat1[row], ', opt2 = ', newdat2[row], ', or enter a new data line'
-        use_data = input('please enter correct data: ')
-        newdata.append(use_data)
-
-# Write compared_data to a csv file to be saved in the Portal folders.
-# Use compared data to query the database before appending
 
 cur.execute("DROP TABLE IF EXISTS queries.newdata")
 cur.execute("""CREATE TABLE queries.newdata
