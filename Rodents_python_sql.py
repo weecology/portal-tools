@@ -81,7 +81,7 @@ def record_problem(errorType, solution, oldData, newData, where): #FIXME
     oldData = oldData, newData = newData, where = database""")
     con.commit()
     
-def find_similar(new_tag, which_ear): #FIXME!!
+def find_similar(new_tag, which_ear_index): #FIXME!!
     """look for tags in newrat that match rtag in 4/6 places. return a list of those
     tags along with important information: mo, dy, yr, plot, sp, sex, rtag, ltag"""
     cur.execute("""SELECT newrat.period, newrat.plot, newrat.stake, newrat.species,
@@ -90,14 +90,13 @@ def find_similar(new_tag, which_ear): #FIXME!!
     similar_data = is_similar(newrat, new_tag, which_ear)
     return similar_data
     
-def is_similar(data, new_tag, which_ear): # FIXME!!!
+def is_similar(data, new_tag, which_ear_index): # FIXME!!!
     '''identify tags which are similar at 4/6 locations'''
-    if which_ear == 'right':
-        tags = dict(map(lambda i: (i,1),data[5])).keys()
-        return
-    elif which_ear == 'left':
-        tags = dict(map(lambda i: (i,1),data[6])).keys())
-        return
+    tags = dict(map(lambda i: (i,1),data[which_ear_index])).keys()
+    #tag_data = find tags similar at 4/6 locations
+    #tag_data = find tags where 8/B or 0/D have been substituted
+    return tag_data
+
 
         
     
@@ -111,8 +110,8 @@ print ('Before importing data, make sure both files have the same number of rows
 filename1 = input('please enter location of data entered by recorder #1: ')
 filename2 = input('please enter location of data entered by recorder #2: ')
 
-newdat1 = np.genfromtxt(filename1, dtype = None, delimiter = ',', skip_header = 1)
-newdat2 = np.genfromtxt(filename2, dtype = None, delimiter = ',', skip_header = 1)
+newdat1 = np.genfromtxt(filename1, dtype = None, delimiter = ',')
+newdat2 = np.genfromtxt(filename2, dtype = None, delimiter = ',')
 
 # compare double-entered data and write a new datafile to use
 rows = range(len(newdat1))
@@ -189,7 +188,7 @@ new_rtags_asterisk = cur.fetchone()      # FIXME
 while new_rtags_asterisk:
     print ('rtag error: ', new_rtags_asterisk)
     #find similar tags in newrat, return a list of those tags (4/6 similar?)    
-    similar_tags = find_similar(new_rtag, 'right')
+    similar_tags = find_similar(new_rtag, 5)
     print similar_tags
     solution = input('Can you address this problem (y/n)? ')
     if solution == 'y':
@@ -213,12 +212,11 @@ FROM queries.newdata new
 LEFT JOIN queries.newrat USING (ltag)
 WHERE newrat.ltag IS NULL AND new.ltag <> ''""")
 
-
 new_ltags_asterisk = cur.fetchone()      # FIXME
 while new_ltags_asterisk:
-    print ('rtag error: ', new_ltags_asterisk)
+    print ('ltag error: ', new_ltags_asterisk)
     #find similar tags in newrat, return a list of those tags (4/6 similar?)    
-    similar_tags = find_similar(new_ltag, 'left')
+    similar_tags = find_similar(new_ltag, 7)
     print similar_tags
     solution = input('Can you address this problem (y/n)? ')
     if solution == 'y':
@@ -236,7 +234,7 @@ while new_ltags_asterisk:
 cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
 new.ltag, new.note3
 FROM queries.newdata new 
-WHERE new.note2 != new.note3""")
+WHERE new.ltag IS NOT NULL AND new.note2 != new.note3""")
 
 changed_tags = cur.fetchone()
 while changed_tags:
@@ -255,18 +253,27 @@ OR ((newrat.sex <> newdata.sex))""")
 
 spp_sex_issues = cur.fetchone()
 while spp_sex_issues:
-    print(spp_sex_issues)
+    print('An error in species or sex has been detected: ', spp_sex_issues)
+    err = input('Is this a species or a sex problem (spp/sex)? ')
+    # find all other records of the individual, return data
+    solution = input('Can you address this problem (y/n)? ')
+    if solution == 'y':
+        where = input('Where will you fix the problem (newdata/Database)? ')
+        if where == 'newdata':
+            update_table(newdata, field, new_info)
+            update_newdata(newdata, field, new_info)
+            record_problem(err, 'y', olddata, newdata, where)
+            print("Don't forget to record your change on the hard copy of the datasheet, too!")
+        elif where == 'database':
+            update_table(database, field, new_info)
+            update_table(newrat, field, new_info)
+            record_problem(err, 'y', olddata, newdata, where)
+    else:
+        record_problem(err, 'n', None, None, None)
 
-# Query Results
-# - the output will include IDs for which the new data have disparate info regarding species of sex 
-# - M vs. F inconsistencies can only be resolved if the animal has been recorded in a reproductive state at some point
-# - if the new data are accurate, be sure to make the corrections in both the newrata and Rodents tables
-# - after making all corrections, rerun query to ensure accuracy
-# FIX ERRORS IN DATABASE OR IN NEWDAT
-con.commit()
-
+# FINISHED ERROR CHECKING, append to database
 # Add ID column to clean newdat that starts with the next integer 
-# This step shouldn't be necessary if the Rodents.ID column is properly formatted as AUTO_INCREMENT */
+# This step shouldn't be necessary if the Rodents.ID column is properly formatted as AUTO_INCREMENT
 cur.execute("ALTER TABLE queries.newdata ADD ID2 INT AUTO_INCREMENT PRIMARY KEY FIRST")
 cur.execute("ALTER TABLE queries.newdata ADD ID INT FIRST")
 cur.execute("UPDATE queries.newdata SET ID = ID2 + (SELECT MAX(Rodents.ID) FROM Portal.Rodents)")
@@ -275,3 +282,5 @@ cur.execute("ALTER TABLE queries.newdata DROP newdata.ID2")
 # Finally, append clean data to Rodents table */
 cur.execute("INSERT INTO Portal.Rodents SELECT newdata.* FROM queries.newdata")
 con.commit()
+
+print ('Finished checking for problems. Your data has been appended to the database on Serenity.')
