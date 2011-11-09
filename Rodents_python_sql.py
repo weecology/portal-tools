@@ -25,6 +25,44 @@ def compare_lines(line1, line2):
         use_data = input('please enter correct data: ')
         return use_data
 
+def upload_newdata(newdata):
+    cur.execute("DROP TABLE IF EXISTS queries.newdata")
+    cur.execute("""CREATE TABLE queries.newdata
+    ( 
+    mo DOUBLE,
+    dy DOUBLE,
+    yr DOUBLE, 
+    period DOUBLE, 
+    plot TINYINT(4), 
+    note1 VARCHAR(255) DEFAULT NULL, 
+    stake DOUBLE DEFAULT NULL, 
+    species VARCHAR(255) DEFAULT NULL,
+    sex VARCHAR(255) DEFAULT NULL,
+    age VARCHAR(255) DEFAULT NULL,
+    reprod VARCHAR(255) DEFAULT NULL,
+    testes VARCHAR(255) DEFAULT NULL,
+    vagina VARCHAR(255) DEFAULT NULL,
+    pregnant VARCHAR(255) DEFAULT NULL,
+    nipples VARCHAR(255) DEFAULT NULL,
+    lactation VARCHAR(255) DEFAULT NULL,
+    hfl DOUBLE DEFAULT NULL,
+    wgt DOUBLE DEFAULT NULL,
+    tag VARCHAR(255) DEFAULT NULL,
+    note2 VARCHAR(255) DEFAULT NULL,
+    ltag VARCHAR(255) DEFAULT NULL,
+    note3 VARCHAR(255) DEFAULT NULL,
+    prevrt VARCHAR(255) DEFAULT NULL,
+    prevlet VARCHAR(255) DEFAULT NULL,
+    nestdir VARCHAR(255) DEFAULT NULL,
+    neststk DOUBLE DEFAULT NULL,
+    note4 VARCHAR(255) DEFAULT NULL,
+    note5 VARCHAR(255) DEFAULT NULL
+    )""")
+    cur.execute("""LOAD DATA LOCAL INFILE filename
+    INTO TABLE queries.newdata
+    FIELDS TERMINATED BY ',' ENCLOSED BY '"'
+    IGNORE 0 LINES""")
+    
 def update_newdata():
     '''find rodent information in the newdata list of lists and update it where 
     data was flagged as having a problem'''
@@ -103,43 +141,7 @@ con = dbapi.connect(host = 'serenity.bluezone.usu.edu',
 
 cur = con.cursor()
 
-cur.execute("DROP TABLE IF EXISTS queries.newdata")
-cur.execute("""CREATE TABLE queries.newdata
-( 
-    mo DOUBLE,
-    dy DOUBLE,
-    yr DOUBLE, 
-    period DOUBLE, 
-    plot TINYINT(4), 
-    note1 VARCHAR(255) DEFAULT NULL, 
-    stake DOUBLE DEFAULT NULL, 
-    species VARCHAR(255) DEFAULT NULL,
-    sex VARCHAR(255) DEFAULT NULL,
-    age VARCHAR(255) DEFAULT NULL,
-    reprod VARCHAR(255) DEFAULT NULL,
-    testes VARCHAR(255) DEFAULT NULL,
-    vagina VARCHAR(255) DEFAULT NULL,
-    pregnant VARCHAR(255) DEFAULT NULL,
-    nipples VARCHAR(255) DEFAULT NULL,
-    lactation VARCHAR(255) DEFAULT NULL,
-    hfl DOUBLE DEFAULT NULL,
-    wgt DOUBLE DEFAULT NULL,
-    tag VARCHAR(255) DEFAULT NULL,
-    note2 VARCHAR(255) DEFAULT NULL,
-    ltag VARCHAR(255) DEFAULT NULL,
-    note3 VARCHAR(255) DEFAULT NULL,
-    prevrt VARCHAR(255) DEFAULT NULL,
-    prevlet VARCHAR(255) DEFAULT NULL,
-    nestdir VARCHAR(255) DEFAULT NULL,
-    neststk DOUBLE DEFAULT NULL,
-    note4 VARCHAR(255) DEFAULT NULL,
-    note5 VARCHAR(255) DEFAULT NULL
-)""")
-
-cur.execute("""LOAD DATA LOCAL INFILE filename
-INTO TABLE queries.newdata
-FIELDS TERMINATED BY ',' ENCLOSED BY '"'
-IGNORE 0 LINES""")
+upload_newdata(newdata)
 
 # Create newrata table for queries which contains only the last 5 years of data
 cur.execute("""DROP TABLE IF EXISTS queries.newrat""") 
@@ -243,7 +245,6 @@ while changed_tags:
     # to the new one. Update the database to push old tag into prev tag.
     # record change in the ErrorLog
 
-
 # Use newrata table to check for consistency in species and sex for each tagged individual 
 cur.execute("""SELECT newrat.period, newrat.plot, newdata.plot, newrat.species, 
 newdata.species AS new_sp, newrat.sex, newdata.sex AS new_sex, newrat.rtag
@@ -252,8 +253,9 @@ INNER JOIN queries.newdata USING (rtag)
 WHERE ((newrat.species<>newdata.species) AND (newrat.rtag=newdata.rtag)) 
 OR ((newrat.sex <> newdata.sex))""")
 
-spp_sex_issues = cur.fetchall()
-print(spp_sex_issues)
+spp_sex_issues = cur.fetchone()
+while spp_sex_issues:
+    print(spp_sex_issues)
 
 # Query Results
 # - the output will include IDs for which the new data have disparate info regarding species of sex 
