@@ -24,10 +24,14 @@ def compare_lines(line1, line2):
         print 'opt1 = ', line1, ', opt2 = ', line2, ', or enter a new data line'
         use_data = input('please enter correct data: ')
         return use_data
+
+def update_newdata():
+    '''find rodent information in the newdata list of lists and update it where 
+    data was flagged as having a problem'''
     
-def update_table(table, field, new_data): # FIXME
+def update_table(table, field, new_info): # FIXME
     '''When a problem is found, update the tables newrat and database with the solution'''
-    cur.execute("""UPDATE table SET field = new_data WHERE mo = 'month', dy = 'day', 
+    cur.execute("""UPDATE table SET field = new_info WHERE mo = 'month', dy = 'day', 
     yr = 'year', period = 'period', plot = 'plot', """)
     con.commit()
                 
@@ -139,17 +143,14 @@ while oldtags_no_asterisk:
     print ('Old tag error: ', oldtags_no_asterisk)
     solution = input('Can you address this problem (y/n)?: ')
     if solution == y:
-        where = input('Where will you fix this problem (newdata/database)?: ')
-        if where == newdata:
-            #find data in newdata and update it
-            record_problem('old tag error', 'y', olddata, newdata, where)
-            print ("Don't forget to record your change on the hard copy of the datasheet, too!")
-        elif where == database:
-            #find data in Rodents and in newrat and update it
-            record_problem('old tag error', 'y', olddata, newdata, where)
+        #find data in newdata table and in the newdata python file and update it
+        update_table(newdata, field, new_info) 
+        update_newdata(newdata, field, new_info)
+        record_problem('old tag error', 'y', olddata, newdata, where)
+        print ("Don't forget to record your change on the hard copy of the datasheet, too!")
     else:
         record_problem('old tag error', 'n', None, None, None)
-
+        
 
 # Use newrata table to check that all new RIGHT tags are indicated with an asterisk
 cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
@@ -158,8 +159,11 @@ FROM queries.newdata new
 LEFT JOIN queries.newrat USING (rtag)
 WHERE newrat.rtag IS NULL AND new.rtag <> ''""")
 
-new_rtags_asterisk = cur.fetchall()
-print (new_rtags_asterisk)
+new_rtags_asterisk = cur.fetchone()
+while new_rtags_asterisk:
+    print ('rtag error: ', new_rtags_asterisk)
+    #find similar tags in newrat, return a list of those tags
+    
 
 # Use newrata table to check that all new LEFT tags are indicated with an asterisk 
 cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
