@@ -43,6 +43,25 @@ def record_problem(errorType, solution, oldData, newData, where): #FIXME
     oldData = oldData, newData = newData, where = database""")
     con.commit()
     
+def find_similar(new_tag, which_ear): #FIXME!!
+    """look for tags in newrat that match rtag in 4/6 places. return a list of those
+    tags along with important information: mo, dy, yr, plot, sp, sex, rtag, ltag"""
+    cur.execute("""SELECT newrat.period, newrat.plot, newrat.stake, newrat.species,
+    newrat.sex, newrat.tag, newrat.ltag, FROM queries.newrat """)
+    newrat = cur.fetchall()
+    similar_data = is_similar(newrat, new_tag, which_ear)
+    return similar_data
+    
+def is_similar(data, new_tag, which_ear): # FIXME!!!
+    '''identify tags which are similar at 4/6 locations'''
+    if which_ear == 'right':
+        tags = dict(map(lambda i: (i,1),data[5])).keys()
+        return
+    elif which_ear == 'left':
+        tags = dict(map(lambda i: (i,1),data[6])).keys())
+        return
+
+        
     
 # PART ONE: DATA ENTRY ERROR CHECKING 
 # before importing, make sure that both files have the same number of rows and are input in the same order
@@ -141,46 +160,89 @@ WHERE newrat.tag > 0""")
 oldtags_no_asterisk = cur.fetchone()   # FIXME
 while oldtags_no_asterisk:
     print ('Old tag error: ', oldtags_no_asterisk)
-    solution = input('Can you address this problem (y/n)?: ')
-    if solution == y:
+    solution = input('Can you address this problem (y/n)? ')
+    if solution == 'y':
         #find data in newdata table and in the newdata python file and update it
         update_table(newdata, field, new_info) 
         update_newdata(newdata, field, new_info)
-        record_problem('old tag error', 'y', olddata, newdata, where)
+        record_problem('old tag error', 'y', olddata, newdata, 'new data')
         print ("Don't forget to record your change on the hard copy of the datasheet, too!")
     else:
         record_problem('old tag error', 'n', None, None, None)
         
 
 # Use newrata table to check that all new RIGHT tags are indicated with an asterisk
+#/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
+#    tag using a subset of the tag number. MYSQL Workbench has a search box that can 
+#    be used to try different parts of the tag number, once you run this next query.
+#SELECT * FROM  queries.newrata;
+# FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
 cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
 new.rtag, new.note2, new.ltag, new.note3
 FROM queries.newdata new 
 LEFT JOIN queries.newrat USING (rtag)
 WHERE newrat.rtag IS NULL AND new.rtag <> ''""")
 
-new_rtags_asterisk = cur.fetchone()
+new_rtags_asterisk = cur.fetchone()      # FIXME
 while new_rtags_asterisk:
     print ('rtag error: ', new_rtags_asterisk)
-    #find similar tags in newrat, return a list of those tags
-    
+    #find similar tags in newrat, return a list of those tags (4/6 similar?)    
+    similar_tags = find_similar(new_rtag, 'right')
+    print similar_tags
+    solution = input('Can you address this problem (y/n)? ')
+    if solution == 'y':
+        update_table(newdata, field, new_info)
+        update_newdata(newdata, field, new_info)
+        record_problem('rtag asterisk error', 'y', olddata, newdata, 'new data')
+        print("Don't forget to record your change on the hard copy of the datasheet, too!")
+    else:
+        record_problem('rtag asterisk error', 'n', None, None, None)
+        
 
 # Use newrata table to check that all new LEFT tags are indicated with an asterisk 
+#/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
+#    tag using a subset of the tag number. MYSQL Workbench has a search box that can 
+#    be used to try different parts of the tag number, once you run this next query.
+#SELECT * FROM  queries.newrata;
+# FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
 cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
 new.ltag, new.note3
 FROM queries.newdata new 
 LEFT JOIN queries.newrat USING (ltag)
 WHERE newrat.ltag IS NULL AND new.ltag <> ''""")
 
-new_ltags_asterisk = cur.fetchall()
-print (new_ltags_asterisk)
 
-#/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
-#    tag using a subset of the tag number. MYSQL Workbench has a search box that can 
-#    be used to try different parts of the tag number, once you run this next query.
-#SELECT * FROM  queries.newrata;
-# FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
-con.commit()
+new_ltags_asterisk = cur.fetchone()      # FIXME
+while new_ltags_asterisk:
+    print ('rtag error: ', new_ltags_asterisk)
+    #find similar tags in newrat, return a list of those tags (4/6 similar?)    
+    similar_tags = find_similar(new_ltag, 'left')
+    print similar_tags
+    solution = input('Can you address this problem (y/n)? ')
+    if solution == 'y':
+        update_table(newdata, field, new_info)
+        update_newdata(newdata, field, new_info)
+        record_problem('ltag asterisk error', 'y', olddata, newdata, 'new data')
+        print("Don't forget to record your change on the hard copy of the datasheet, too!")
+    else:
+        record_problem('ltag asterisk error', 'n', None, None, None)
+        
+# Flag any cases where there is an entry for BOTH rtag and ltag AND where they differ 
+# in the presence of an asterisk. Where an individual IS a recapture AND has a NEW tag,
+# the old tag must be updated in the database and in newrat. The old tag can be pushed
+# over to prevrt or prevlt. A record should be made in the ErrorLog.
+cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
+new.ltag, new.note3
+FROM queries.newdata new 
+WHERE new.note2 != new.note3""")
+
+changed_tags = cur.fetchone()
+while changed_tags:
+    print ('A tag has changed: ', changed_tags)
+    # find old tag in the database using the tag that has remained consistent. Change the old tag
+    # to the new one. Update the database to push old tag into prev tag.
+    # record change in the ErrorLog
+
 
 # Use newrata table to check for consistency in species and sex for each tagged individual 
 cur.execute("""SELECT newrat.period, newrat.plot, newdata.plot, newrat.species, 
