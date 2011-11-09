@@ -13,6 +13,9 @@ def save_data(data, new_filename):
     data_file.close()
 
 def compare_lines(line1, line2):
+    '''input two lines of data that should be th same and look for differences.
+    if the lines are the same, return line 1. If they are different, give the user
+    the choice of which line is correct, line1, line2, or a new line that the user inputs'''
     if line1 == line2:
         return line1
     elif line1 != line2:
@@ -21,6 +24,21 @@ def compare_lines(line1, line2):
         print 'opt1 = ', line1, ', opt2 = ', line2, ', or enter a new data line'
         use_data = input('please enter correct data: ')
         return use_data
+    
+def update_table(table, field, new_data): # FIXME
+    '''When a problem is found, update the tables newrat and database with the solution'''
+    cur.execute("""UPDATE table SET field = new_data WHERE mo = 'month', dy = 'day', 
+    yr = 'year', period = 'period', plot = 'plot', """)
+    con.commit()
+                
+def record_problem(errorType, solution, oldData, newData, where): #FIXME
+    '''When a problem is flagged, this records the error raised, if a solution was 
+    reached (Y/N), and what the old data was, what it was changed to, and where it 
+    was changed (datasheet/database)'''
+    cur.execute("""UPDATE ErrorLog SET date = date, error = errorType, solution = solution,
+    oldData = oldData, newData = newData, where = database""")
+    con.commit()
+    
     
 # PART ONE: DATA ENTRY ERROR CHECKING 
 # before importing, make sure that both files have the same number of rows and are input in the same order
@@ -46,13 +64,21 @@ for row in rows:
 new_filename = input('What do you want to call the new file?: ')
 save_data(newdata, new_filename)
 
-# Use compared data to query the database before appending
+#practice data
+newdata = [[8,6,2011,396,1,None,45,'DM','F',None,None,None,'S',None,None,None,36,31,'000178','*','000179','*',None,None,None,None,None,None],
+           [8,6,2011,396,2,None,47,'PP','F','Z',None,None,None,None,None,None,22,20,'0B0D15',None,None,None,None,None,None,None,None,None,None]]
 
-database = 'F:/adv_prog/Assn4/portal_mammals_fake.sqlite'
+# PART TWO: Connect to the database on the server
+# Use new data to query the database for potential problems before appending
+user = input('What is your username?: ')
+yourpassword = input('Please enter your password: ')
 
-con = dbapi.connect(database)
+con = dbapi.connect(host = 'serenity.bluezone.usu.edu',
+              port = 1995,
+              user = user,
+              passwd = yourpassword)
+
 cur = con.cursor()
-
 
 cur.execute("DROP TABLE IF EXISTS queries.newdata")
 cur.execute("""CREATE TABLE queries.newdata
@@ -81,7 +107,6 @@ cur.execute("""CREATE TABLE queries.newdata
     note3 VARCHAR(255) DEFAULT NULL,
     prevrt VARCHAR(255) DEFAULT NULL,
     prevlet VARCHAR(255) DEFAULT NULL,
-    note5 VARCHAR(255) DEFAULT NULL,
     nestdir VARCHAR(255) DEFAULT NULL,
     neststk DOUBLE DEFAULT NULL,
     note4 VARCHAR(255) DEFAULT NULL,
@@ -93,23 +118,38 @@ INTO TABLE queries.newdata
 FIELDS TERMINATED BY ',' ENCLOSED BY '"'
 IGNORE 0 LINES""")
 
-# Create newrata table for queries which contains only the last 5 year of data
-cur.execute("""DROP TABLE IF EXISTS queries.newrat 
-CREATE TABLE queries.newrat 
+# Create newrata table for queries which contains only the last 5 years of data
+cur.execute("""DROP TABLE IF EXISTS queries.newrat""") 
+cur.execute("""CREATE TABLE queries.newrat 
 SELECT Rodents.* 
 FROM Portal.Rodents 
 WHERE Rodents.period > ((SELECT Max(Rodents.period) FROM Portal.Rodents) - 60) 
 ALTER TABLE queries.newrat ADD PRIMARY KEY (ID)""")
 
 # Use newrata table to check that all old tags are NOT indicated with an asterisk
+# Problem occurs when an already existing tag HAS an asterisk
 cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
 new.sex, new.rtag, new.note2, new.ltag, new.note3
 FROM queries.newdata new 
-LEFT JOIN queries.newrat ON new.rtag = newrat.rtag
-WHERE newrat.rtag > 0""")
+LEFT JOIN queries.newrat ON new.rtag = newrat.tag
+WHERE newrat.tag > 0""")
 
-oldtags_no_asterisk = cur.fetchall()
-print (oldtags_no_asterisk)
+oldtags_no_asterisk = cur.fetchone()   # FIXME
+while oldtags_no_asterisk:
+    print ('Old tag error: ', oldtags_no_asterisk)
+    solution = input('Can you address this problem (y/n)?: ')
+    if solution == y:
+        where = input('Where will you fix this problem (newdata/database)?: ')
+        if where == newdata:
+            #find data in newdata and update it
+            record_problem('old tag error', 'y', olddata, newdata, where)
+            print ("Don't forget to record your change on the hard copy of the datasheet, too!")
+        elif where == database:
+            #find data in Rodents and in newrat and update it
+            record_problem('old tag error', 'y', olddata, newdata, where)
+    else:
+        record_problem('old tag error', 'n', None, None, None)
+
 
 # Use newrata table to check that all new RIGHT tags are indicated with an asterisk
 cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
