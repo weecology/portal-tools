@@ -11,14 +11,6 @@ add data to the 'Hourly' database table
 run a query to add daily data to 'Daily' table in database 
 run a query to add monthly data to 'Monthly table in database"""
     
-def data_to_list(data_line):
-    '''input a line of data from the weather.dat file that IS NOT a battery reading.
-    converts the data line to a list that can be manipulated.'''
-    datalist = []
-    for l in data_line:
-        datalist.append(l)
-    return datalist
-    
 def add_tempSoil(data_line):
     '''adds an empty string to the data line. This will go in the tempSoil column later.'''
     return data_line.append(None)
@@ -56,7 +48,6 @@ def rearrange_cols(data_line):
 def prepare_data(data_line):
     '''inputs a line of data from weather.dat and determines if it's a battery reading.
     If not, then  the dataline is manipulated and appended to fit the Portal weather database.'''
-    data_line = data_to_list(data_line)
     add_tempSoil(data_line)
     data_line = jday2caldates(data_line)
     data_line = rearrange_cols(data_line)
@@ -71,8 +62,7 @@ def compile_weather_data(data):
     weather_data = []
     for line in weather:
         wx = prepare_data(line)
-        if len(wx) > 1: 
-            weather_data.append(wx)
+        weather_data.append(wx)
     return weather_data
             
 def save_weather_file(data, filename):
@@ -98,14 +88,9 @@ datafile = open(filename, 'r')
 weather = []
 for row in datafile:
     row_data = row.strip().split(',')
-    if len(row_data) == 7:
+    if len(row_data) == 7:  # don't import battery readings
         row_data = map(float, row_data)
         weather.append(row_data)
-        
-for row in weather:
-    d = is_battery_reading(row)
-    if d ==  'Y':
-        print row
         
 
 # get data to be appended to database
