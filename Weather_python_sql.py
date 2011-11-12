@@ -12,7 +12,20 @@ Save a copy of the edited data file as 'weathperiodcode'.csv
 add data to the 'Hourly' database table
 run a query to add daily data to 'Daily' table in database 
 run a query to add monthly data to 'Monthly table in database"""
-    
+
+def import_datafile(filename):
+    ''' imports data as a lists of lists with elements:  
+0 = array, 1 = year, 2 = Julian day, 3 = hour, 4 = ppt, 5 = tempAir, 6 = RelHumid 
+The length check makes sure NOT to import shorter rows, which are battery readings'''
+    datafile = open(filename, 'r')
+    data_list = []
+    for row in datafile:
+        row_data = row.strip().split(',')
+        if len(row_data) == 7:
+            row_data = map(float, row_data)
+            data_list.append(row_data)
+    return data_list
+            
 def add_tempSoil(data_line):
     '''adds an empty string to the data line. This will go in the tempSoil column later.'''
     return data_line.append(None)
@@ -74,44 +87,34 @@ def save_weather_file(data, filename):
     w = csv.writer(weatherFile,delimiter=',')
     w.writerows(data)
     weatherFile.close()
+
+    
+# Execute commands if running directly:    
+if __name__ == '__main__':
+    
+#location of new weather file;  For example, use 'F:\AdvProj_Portal\Met395.dat'
+    filename = input('Where is your most recent weather file located? ')
+    weather = import_datafile(filename)
+
+    weather_to_add = compile_weather_data(weather)
     
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% DOES STUFF
-#location of new weather file
-filename = input('Where is your most recent weather file located? ' )
-#'F:\AdvProj_Portal\Met395.dat'
+    #DATABASE STUFF: open file to append to database
+    user = input('What is your username?: ')
+    yourpassword = input('Please enter your password: ')
 
-# import into python
-''' elements in the list:  
-0 = array, 1 = year, 2 = Julian day, 3 = hour, 4 = ppt, 5 = tempAir, 6 = RelHumid 
-The length check makes sure NOT to import shorter rows, which are battery readings.'''
-datafile = open(filename, 'r')
-weather = []
-for row in datafile:
-    row_data = row.strip().split(',')
-    if len(row_data) == 7:
-        row_data = map(float, row_data)
-        weather.append(row_data)
-        
-# get data to be appended to database
-weather_to_add = compile_weather_data(weather)
-
-
-#DATABASE STUFF: open file to append to database
-user = input('What is your username?: ')
-yourpassword = input('Please enter your password: ')
-
-con = dbapi.connect(host = 'serenity.bluezone.usu.edu',
+    con = dbapi.connect(host = 'serenity.bluezone.usu.edu',
               port = 1995,
               user = user,
               passwd = yourpassword)
 
-cur = con.cursor()
+    cur = con.cursor()
 
-cur.execute(USE weather) #or whatever the name of portal weather database is
-cur.execute("DROP TABLE IF EXISTS weath")
-cur.execute("""CREATE TABLE queries.weath
-( Year DOUBLE,
+    # create and fill table with new weather data
+    cur.execute("USE Hourlyweather")
+    cur.execute("DROP TABLE IF EXISTS weath")
+    cur.execute("""CREATE TABLE queries.weath
+    ( Year DOUBLE,
     Month DOUBLE,
     Day DOUBLE, 
     Hour DOUBLE, 
@@ -119,42 +122,45 @@ cur.execute("""CREATE TABLE queries.weath
     RelHumid FLOAT
     TempSoil FLOAT
     Precipiation(mm) FLOAT
-)""")
+    )""")
 
-cur.execute("""LOAD DATA LOCAL INFILE weather_to_add
-INTO TABLE queries.weath
-FIELDS TERMINATED BY ',' ENCLOSED BY '"'
-IGNORE 0 LINES""")
-con.commit()
+    cur.execute("""LOAD DATA LOCAL INFILE weather_to_add
+    INTO TABLE queries.weath
+    FIELDS TERMINATED BY ',' ENCLOSED BY '"'
+    IGNORE 0 LINES""")
 
-#append data to Hourly weather Table, making sure not to repeat data that already exists
-cur.execute("""INSERT INTO Portal.Hourlyweather SELECT weath.* 
-FROM queries.weath
-LEFT JOIN queries.weath ON Hourlyweather.year = weath.year, Hourlyweather.month = weath.month,
-Hourlyweather.day = weath.day, Hourlyweather.hour = weath.hour
-WHERE Hourlyweather.* IS NULL and weath.* <>''""") #how do I do this?
-con.commit()
+    #append data to Hourly weather Table, making sure not to repeat data that already exists
+    cur.execute("""INSERT INTO Portal.Hourlyweather SELECT weath.* 
+    FROM queries.weath
+    LEFT JOIN queries.weath ON Hourlyweather.year = weath.year, Hourlyweather.month = weath.month,
+    Hourlyweather.day = weath.day, Hourlyweather.hour = weath.hour
+    WHERE Hourlyweather.* IS NULL and weath.* <>''""") #how do I do this?
+    con.commit()
+    
+    #numrows = RETURN THE NUMBER OF UNMATCHED ROWS THAT WERE APPENDED
 
-# run a query to add daily data to 'Daily' table in database 
-cur.execute("""SELECT DISTINCTROW HourlyWeather.Year, HourlyWeather.Month, HourlyWeather.Day, 
-Avg(HourlyWeather.TempAir) AS TempAirAvg, Max(HourlyWeather.TempAir) AS TempAirMax, 
-Min(HourlyWeather.TempAir) AS TempAirMin, Avg(HourlyWeather.RelHumid) AS RH_Avg, 
-Max(HourlyWeather.RelHumid) AS RH_Max, Min(HourlyWeather.RelHumid) AS RH_Min, 
-Avg(HourlyWeather.TempSoil) AS TempSoilAvg, Max(HourlyWeather.TempSoil) AS TempSoilMax, 
-Min(HourlyWeather.TempSoil) AS TempSoilMin, Sum(HourlyWeather.Precipitation(mm)) AS Total_Precipitation
-INSERT INTO Daily(mm)
-FROM HourlyWeather
-GROUP BY HourlyWeather.Year, HourlyWeather.Month, HourlyWeather.Day""")
+    # run a query to add daily data to 'Daily' table in database 
+    cur.execute("""SELECT DISTINCTROW HourlyWeather.Year, HourlyWeather.Month, HourlyWeather.Day, 
+    Avg(HourlyWeather.TempAir) AS TempAirAvg, Max(HourlyWeather.TempAir) AS TempAirMax, 
+    Min(HourlyWeather.TempAir) AS TempAirMin, Avg(HourlyWeather.RelHumid) AS RH_Avg, 
+    Max(HourlyWeather.RelHumid) AS RH_Max, Min(HourlyWeather.RelHumid) AS RH_Min, 
+    Avg(HourlyWeather.TempSoil) AS TempSoilAvg, Max(HourlyWeather.TempSoil) AS TempSoilMax, 
+    Min(HourlyWeather.TempSoil) AS TempSoilMin, Sum(HourlyWeather.Precipitation(mm)) AS Total_Precipitation
+    INSERT INTO Daily(mm)
+    FROM HourlyWeather
+    GROUP BY HourlyWeather.Year, HourlyWeather.Month, HourlyWeather.Day""")
+    
+    # run a query to add monthly data to 'Monthly' table in database
+    cur.execute("""SELECT DISTINCTROW HourlyWeather.Year, HourlyWeather.Month, Avg(HourlyWeather.TempAir) 
+    AS TempAirAvg, Max(HourlyWeather.TempAir) AS TempAirMax, Min(HourlyWeather.TempAir) AS TempAirMin, 
+    Avg(HourlyWeather.RelHumid) AS RH_Avg, Max(HourlyWeather.RelHumid) AS RH_Max, 
+    Min(HourlyWeather.RelHumid) AS RH_Min, Avg(HourlyWeather.TempSoil) AS TempSoilAvg, 
+    Max(HourlyWeather.TempSoil) AS TempSoilMax, Min(HourlyWeather.TempSoil) AS TempSoilMin, 
+    Sum(HourlyWeather.Precipitation(mm)) AS Total_Precipitation 
+    INSERT INTO Monthly(mm)1989-present
+    FROM HourlyWeather
+    GROUP BY HourlyWeather.Year, HourlyWeather.Month""")
 
-# run a query to add monthly data to 'Monthly table in database
-cur.execute("""SELECT DISTINCTROW HourlyWeather.Year, HourlyWeather.Month, Avg(HourlyWeather.TempAir) 
-AS TempAirAvg, Max(HourlyWeather.TempAir) AS TempAirMax, Min(HourlyWeather.TempAir) AS TempAirMin, 
-Avg(HourlyWeather.RelHumid) AS RH_Avg, Max(HourlyWeather.RelHumid) AS RH_Max, 
-Min(HourlyWeather.RelHumid) AS RH_Min, Avg(HourlyWeather.TempSoil) AS TempSoilAvg, 
-Max(HourlyWeather.TempSoil) AS TempSoilMax, Min(HourlyWeather.TempSoil) AS TempSoilMin, 
-Sum(HourlyWeather.Precipitation(mm)) AS Total_Precipitation 
-INSERT INTO Monthly(mm)1989-present
-FROM HourlyWeather
-GROUP BY HourlyWeather.Year, HourlyWeather.Month""")
-
-con.commit()
+    con.commit()
+    print 'Project complete. You have appended, ', numrows, 'to the weather data on Serenity.'
+    
