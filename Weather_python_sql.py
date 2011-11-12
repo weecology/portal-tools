@@ -130,17 +130,33 @@ IGNORE 0 LINES""")
 con.commit()
 
 #append data to Hourly weather Table, making sure not to repeat data that already exists
-cur.execute("INSERT INTO Portal.Rodents SELECT newdat.* FROM queries.newdat")
+cur.execute("""INSERT INTO Portal.Hourlyweather SELECT weath.* 
+FROM queries.weath
+LEFT JOIN queries.weath ON Hourlyweather.year = weath.year, Hourlyweather.month = weath.month,
+Hourlyweather.day = weath.day, Hourlyweather.hour = weath.hour
+WHERE Hourlyweather.* IS NULL and weath.* <>''""") #how do I do this?
 con.commit()
 
 # run a query to add daily data to 'Daily' table in database 
-cur.execute("""SELECT DISTINCTROW [Hourly (mm)].Year, [Hourly (mm)].Month, [Hourly (mm)].Day, 
-Avg([Hourly (mm)].TempAir) AS TempAirAvg, Max([Hourly (mm)].TempAir) AS TempAirMax, 
-Min([Hourly (mm)].TempAir) AS TempAirMin, Avg([Hourly (mm)].RelHumid) AS [RH Avg], 
-Max([Hourly (mm)].RelHumid) AS [RH Max], Min([Hourly (mm)].RelHumid) AS [RH Min], 
-Avg([Hourly (mm)].TempSoil) AS TempSoilAvg, Max([Hourly (mm)].TempSoil) AS TempSoilMax, Min([Hourly (mm)].TempSoil) AS TempSoilMin, Sum([Hourly (mm)].[Precipitation (mm)]) AS [Total Precipitation] INTO [Daily (mm)]
-FROM [Hourly (mm)]
-GROUP BY [Hourly (mm)].Year, [Hourly (mm)].Month, [Hourly (mm)].Day;""")
-
+cur.execute("""SELECT DISTINCTROW HourlyWeather.Year, HourlyWeather.Month, HourlyWeather.Day, 
+Avg(HourlyWeather.TempAir) AS TempAirAvg, Max(HourlyWeather.TempAir) AS TempAirMax, 
+Min(HourlyWeather.TempAir) AS TempAirMin, Avg(HourlyWeather.RelHumid) AS RH_Avg, 
+Max(HourlyWeather.RelHumid) AS RH_Max, Min(HourlyWeather.RelHumid) AS RH_Min, 
+Avg(HourlyWeather.TempSoil) AS TempSoilAvg, Max(HourlyWeather.TempSoil) AS TempSoilMax, 
+Min(HourlyWeather.TempSoil) AS TempSoilMin, Sum(HourlyWeather.Precipitation(mm)) AS Total_Precipitation
+INSERT INTO Daily(mm)
+FROM HourlyWeather
+GROUP BY HourlyWeather.Year, HourlyWeather.Month, HourlyWeather.Day""")
 
 # run a query to add monthly data to 'Monthly table in database
+cur.execute("""SELECT DISTINCTROW HourlyWeather.Year, HourlyWeather.Month, Avg(HourlyWeather.TempAir) 
+AS TempAirAvg, Max(HourlyWeather.TempAir) AS TempAirMax, Min(HourlyWeather.TempAir) AS TempAirMin, 
+Avg(HourlyWeather.RelHumid) AS RH_Avg, Max(HourlyWeather.RelHumid) AS RH_Max, 
+Min(HourlyWeather.RelHumid) AS RH_Min, Avg(HourlyWeather.TempSoil) AS TempSoilAvg, 
+Max(HourlyWeather.TempSoil) AS TempSoilMax, Min(HourlyWeather.TempSoil) AS TempSoilMin, 
+Sum(HourlyWeather.Precipitation(mm)) AS Total_Precipitation 
+INSERT INTO Monthly(mm)1989-present
+FROM HourlyWeather
+GROUP BY HourlyWeather.Year, HourlyWeather.Month""")
+
+con.commit()
