@@ -105,7 +105,7 @@ if __name__ == '__main__':
     ''' Data should be in a csv file titles newdatXXXa.csv where XXX should be 
     filled in with the period code and a refers to the initials of the person who
     entered the data'''     
-    print ('Before importing data, make sure both files have the same number of rows and are in the same order!')
+    print 'Before importing data, make sure both files have the same number of rows and are in the same order!'
     filename1 = input('please enter location of data entered by recorder #1: ')
     filename2 = input('please enter location of data entered by recorder #2: ')
 
@@ -279,7 +279,8 @@ if __name__ == '__main__':
 
     # Finally, append clean data to Rodents table */
     cur.execute("INSERT INTO Portal.Rodents SELECT newdata.* FROM queries.newdata")
+    # numrows = NUMBER OF ROWS IN NEWDATA APPENDED TO RODENTS     FIX ME!
     con.commit()
 
-    print ('Finished checking for problems. Your data has been appended to the database on Serenity.')
+    print 'Finished checking for problems. You have appended ', numrows, ' to the Rodents on Serenity.'
     
