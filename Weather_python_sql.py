@@ -21,21 +21,19 @@ def jday2caldates(data_line):
     '''takes a year and a julian day (range(0,366)) and returns a 
     calendar month and day. defines a list of months and days for both year types
     on which to index the julian day to calendar day and month.'''
+    leapdays = sum([range(1,32), range(1,30), range(1,32), range(1,31), range(1,32), range(1,31),range(1,32), range(1,32), range(1,31),range(1,32), range(1,31),range(1,32)],[])
+    leapmos = sum([[1]*31,[2]*29,[3]*31,[4]*30,[5]*31,[6]*30,[7]*31,[8]*31,[9]*30,[10]*31,[11]*30,[12]*31],[])
+    days = sum([range(1,32), range(1,29), range(1,32), range(1,31), range(1,32), range(1,31),range(1,32), range(1,32), range(1,31),range(1,32), range(1,31),range(1,32)],[])
+    months = sum([[1]*31,[2]*28,[3]*31,[4]*30,[5]*31,[6]*30,[7]*31,[8]*31,[9]*30,[10]*31,[11]*30,[12]*31],[])
     if calendar.isleap(data_line[1])==True:
-        days = sum([range(1,32), range(1,30), range(1,32), range(1,31), range(1,32), range(1,31),range(1,32), range(1,32), range(1,31),range(1,32), range(1,31),range(1,32)],[])
-        months = sum([[1]*31,[2]*29,[3]*31,[4]*30,[5]*31,[6]*30,[7]*31,[8]*31,[9]*30,[10]*31,[11]*30,[12]*31],[])
-        cal_day = days[int(data_line[2]) - 1]
-        cal_month = months[int(data_line[2]) - 1]
+        cal_day = leapdays[int(data_line[2]) - 1]
+        cal_month = leapmos[int(data_line[2]) - 1]
         data_line.extend([cal_month, cal_day])
-        data_line[0] = int(data_line[0])
         return data_line
     else :
-        days = sum([range(1,32), range(1,29), range(1,32), range(1,31), range(1,32), range(1,31),range(1,32), range(1,32), range(1,31),range(1,32), range(1,31),range(1,32)],[])
-        months = sum([[1]*31,[2]*28,[3]*31,[4]*30,[5]*31,[6]*30,[7]*31,[8]*31,[9]*30,[10]*31,[11]*30,[12]*31],[])
         cal_day = days[int(data_line[2]) - 1]
         cal_month = months[int(data_line[2]) - 1]
         data_line.extend([cal_month, cal_day])
-        data_line[0] = int(data_line[0])
         return data_line
 
 def rearrange_cols(data_line):
