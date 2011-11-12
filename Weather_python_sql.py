@@ -29,7 +29,7 @@ def data_to_list(data_line):
     
 def add_tempSoil(data_line):
     '''adds an empty string to the data line. This will go in the tempSoil column later.'''
-    return data_line.append('')
+    return data_line.append(None)
 
 def jday2caldates(data_line):
     '''takes a year and a julian day (range(0,366)) and returns a 
@@ -107,8 +107,6 @@ weather = np.genfromtxt(filename, delimiter = ',', names = ['array','year','juli
 # get data to be appended to database
 weather_to_add = compile_weather_data(weather)
 
-# save a copy of the finished file to a shared location
-save_weather_file(weather_to_add, 'weathperiodcode.csv')
 
 #DATABASE STUFF: open file to append to database
 database = 'loc/weather_db.sqlite'
