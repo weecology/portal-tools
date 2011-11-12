@@ -10,14 +10,6 @@ Save a copy of the edited data file as 'weathperiodcode'.csv
 add data to the 'Hourly' database table
 run a query to add daily data to 'Daily' table in database 
 run a query to add monthly data to 'Monthly table in database"""
-
-def is_battery_reading(data_line):
-    '''input a line of data from the weather.dat file. if ppt == 12.7, tempAir == 2196 and
-    hour == 2400, then it is a battery reading. Return (Y)es or (N)o.'''
-    if data_line['ppt']==12.7 and data_line['tempAir'] == 2196 and data_line['hour']==2400:
-        return ('Y')
-    else:
-        return ('N')
     
 def data_to_list(data_line):
     '''input a line of data from the weather.dat file that IS NOT a battery reading.
@@ -64,15 +56,11 @@ def rearrange_cols(data_line):
 def prepare_data(data_line):
     '''inputs a line of data from weather.dat and determines if it's a battery reading.
     If not, then  the dataline is manipulated and appended to fit the Portal weather database.'''
-    is_battery = is_battery_reading(data_line)
-    if is_battery == 'N':
-        data_line = data_to_list(data_line)
-        add_tempSoil(data_line)
-        data_line = jday2caldates(data_line)
-        data_line = rearrange_cols(data_line)
-        return data_line
-    else:
-        return ['battery_reading']
+    data_line = data_to_list(data_line)
+    add_tempSoil(data_line)
+    data_line = jday2caldates(data_line)
+    data_line = rearrange_cols(data_line)
+    return data_line
     
 def compile_weather_data(data):
     '''input weather.dat file. 
@@ -104,12 +92,21 @@ filename = input('Where is your most recent weather file located? ' )
 filename = ('F:\AdvProj_Portal\Met395.DAT')
 
 # import into python
+# elements in the list:  
+# 0 = array, 1 = year, 2 = Julian day, 3 = hour, 4 = ppt, 5 = tempAir, 6 = RelHumid
 datafile = open(filename, 'r')
 weather = []
 for row in datafile:
     row_data = row.strip().split(',')
     if len(row_data) == 7:
+        row_data = map(float, row_data)
         weather.append(row_data)
+        
+for row in weather:
+    d = is_battery_reading(row)
+    if d ==  'Y':
+        print row
+        
 
 # get data to be appended to database
 weather_to_add = compile_weather_data(weather)
