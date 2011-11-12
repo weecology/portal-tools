@@ -99,10 +99,17 @@ def save_weather_file(data, filename):
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% DOES STUFF
 #location of new weather file
-filename = 'F:\AdvProj_Portal\Met132.dat'
+filename = input('Where is your most recent weather file located? ' )
+#'F:\AdvProj_Portal\Met132.dat'
+filename = ('F:\AdvProj_Portal\Met395.DAT')
 
 # import into python
-weather = np.genfromtxt(filename, delimiter = ',', names = ['array','year','julianDay', 'hour', 'ppt', 'tempAir', 'relHumid'])
+datafile = open(filename, 'r')
+weather = []
+for row in datafile:
+    row_data = row.strip().split(',')
+    if len(row_data) == 7:
+        weather.append(row_data)
 
 # get data to be appended to database
 weather_to_add = compile_weather_data(weather)
