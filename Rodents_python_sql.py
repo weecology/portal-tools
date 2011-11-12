@@ -98,189 +98,188 @@ def is_similar(data, new_tag, which_ear_index): # FIXME!!!
     return tag_data
 
 
-        
+# Execute commands if running directly:    
+if __name__ == '__main__':        
     
-# PART ONE: DATA ENTRY ERROR CHECKING 
-# before importing, make sure that both files have the same number of rows and are input in the same order
-    
-''' Data should be in a csv file titles newdatXXXa.csv where XXX should be 
-filled in with the period code and a refers to the initials of the person who
-entered the data'''     
-print ('Before importing data, make sure both files have the same number of rows and are in the same order!')
-filename1 = input('please enter location of data entered by recorder #1: ')
-filename2 = input('please enter location of data entered by recorder #2: ')
+    # PART ONE: DATA ENTRY ERROR CHECKING 
+    ''' Data should be in a csv file titles newdatXXXa.csv where XXX should be 
+    filled in with the period code and a refers to the initials of the person who
+    entered the data'''     
+    print ('Before importing data, make sure both files have the same number of rows and are in the same order!')
+    filename1 = input('please enter location of data entered by recorder #1: ')
+    filename2 = input('please enter location of data entered by recorder #2: ')
 
-newdat1 = np.genfromtxt(filename1, dtype = None, delimiter = ',')
-newdat2 = np.genfromtxt(filename2, dtype = None, delimiter = ',')
+    newdat1 = np.genfromtxt(filename1, dtype = None, delimiter = ',')
+    newdat2 = np.genfromtxt(filename2, dtype = None, delimiter = ',')
 
-# compare double-entered data and write a new datafile to use
-rows = range(len(newdat1))
-newdata = []
-for row in rows:
-    next_line = compare_lines(newdat1[row], newdat2[row])
-    newdata.append(next_line)
+    # compare double-entered data and write a new datafile to use
+    rows = range(len(newdat1))
+    newdata = []
+    for row in rows:
+        next_line = compare_lines(newdat1[row], newdat2[row])
+        newdata.append(next_line)
 
-# Write compared_data to a csv file to be saved in the Portal folders.
-new_filename = input('What do you want to call the new file?: ')
-save_data(newdata, new_filename)
+        # Write compared_data to a csv file to be saved in the Portal folders.
+        new_filename = input('What do you want to call the new file?: ')
+        save_data(newdata, new_filename)
 
-#practice data
-newdata = [[8,6,2011,396,1,None,45,'DM','F',None,None,None,'S',None,None,None,36,31,'000178','*','000179','*',None,None,None,None,None,None],
+        #practice data
+        newdata = [[8,6,2011,396,1,None,45,'DM','F',None,None,None,'S',None,None,None,36,31,'000178','*','000179','*',None,None,None,None,None,None],
            [8,6,2011,396,2,None,47,'PP','F','Z',None,None,None,None,None,None,22,20,'0B0D15',None,None,None,None,None,None,None,None,None,None]]
 
-# PART TWO: Connect to the database on the server
-# Use new data to query the database for potential problems before appending
-user = input('What is your username?: ')
-yourpassword = input('Please enter your password: ')
+        # PART TWO: Connect to the database on the server
+        # Use new data to query the database for potential problems before appending
+        user = input('What is your username?: ')
+        yourpassword = input('Please enter your password: ')
+        
+        con = dbapi.connect(host = 'serenity.bluezone.usu.edu',
+                            port = 1995,
+                            user = user,
+                            passwd = yourpassword)
 
-con = dbapi.connect(host = 'serenity.bluezone.usu.edu',
-              port = 1995,
-              user = user,
-              passwd = yourpassword)
+        cur = con.cursor()
+        
+        upload_newdata(newdata)
 
-cur = con.cursor()
+        # Create newrata table for queries which contains only the last 5 years of data
+        cur.execute("""DROP TABLE IF EXISTS queries.newrat""") 
+        cur.execute("""CREATE TABLE queries.newrat 
+        SELECT Rodents.* 
+        FROM Portal.Rodents 
+        WHERE Rodents.period > ((SELECT Max(Rodents.period) FROM Portal.Rodents) - 60) 
+        ALTER TABLE queries.newrat ADD PRIMARY KEY (ID)""")
+        
+        # Use newrata table to check that all old tags are NOT indicated with an asterisk
+        # Problem occurs when an already existing tag HAS an asterisk
+        cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
+        new.sex, new.rtag, new.note2, new.ltag, new.note3
+        FROM queries.newdata new 
+        LEFT JOIN queries.newrat ON new.rtag = newrat.tag
+        WHERE newrat.tag > 0""")
 
-upload_newdata(newdata)
-
-# Create newrata table for queries which contains only the last 5 years of data
-cur.execute("""DROP TABLE IF EXISTS queries.newrat""") 
-cur.execute("""CREATE TABLE queries.newrat 
-SELECT Rodents.* 
-FROM Portal.Rodents 
-WHERE Rodents.period > ((SELECT Max(Rodents.period) FROM Portal.Rodents) - 60) 
-ALTER TABLE queries.newrat ADD PRIMARY KEY (ID)""")
-
-# Use newrata table to check that all old tags are NOT indicated with an asterisk
-# Problem occurs when an already existing tag HAS an asterisk
-cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
-new.sex, new.rtag, new.note2, new.ltag, new.note3
-FROM queries.newdata new 
-LEFT JOIN queries.newrat ON new.rtag = newrat.tag
-WHERE newrat.tag > 0""")
-
-oldtags_no_asterisk = cur.fetchone()   # FIXME
-while oldtags_no_asterisk:
-    print ('Old tag error: ', oldtags_no_asterisk)
-    solution = input('Can you address this problem (y/n)? ')
-    if solution == 'y':
-        #find data in newdata table and in the newdata python file and update it
-        update_table(newdata, field, new_info) 
-        update_newdata(newdata, field, new_info)
-        record_problem('old tag error', 'y', olddata, newdata, 'new data')
-        print ("Don't forget to record your change on the hard copy of the datasheet, too!")
-    else:
-        record_problem('old tag error', 'n', None, None, None)
+        oldtags_no_asterisk = cur.fetchone()   # FIXME
+        while oldtags_no_asterisk:
+            print ('Old tag error: ', oldtags_no_asterisk)
+            solution = input('Can you address this problem (y/n)? ')
+            if solution == 'y':
+                #find data in newdata table and in the newdata python file and update it
+                update_table(newdata, field, new_info) 
+                update_newdata(newdata, field, new_info)
+                record_problem('old tag error', 'y', olddata, newdata, 'new data')
+                print ("Don't forget to record your change on the hard copy of the datasheet, too!")
+            else:
+                record_problem('old tag error', 'n', None, None, None)
         
 
-# Use newrata table to check that all new RIGHT tags are indicated with an asterisk
-#/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
-#    tag using a subset of the tag number. MYSQL Workbench has a search box that can 
-#    be used to try different parts of the tag number, once you run this next query.
-#SELECT * FROM  queries.newrata;
-# FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
-cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
-new.rtag, new.note2, new.ltag, new.note3
-FROM queries.newdata new 
-LEFT JOIN queries.newrat USING (rtag)
-WHERE newrat.rtag IS NULL AND new.rtag <> ''""")
+        # Use newrata table to check that all new RIGHT tags are indicated with an asterisk
+        #/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
+        #    tag using a subset of the tag number. MYSQL Workbench has a search box that can 
+        #    be used to try different parts of the tag number, once you run this next query.
+        #SELECT * FROM  queries.newrata;
+        # FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
+        cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
+        new.rtag, new.note2, new.ltag, new.note3
+        FROM queries.newdata new 
+        LEFT JOIN queries.newrat USING (rtag)
+        WHERE newrat.rtag IS NULL AND new.rtag <> ''""")
 
-new_rtags_asterisk = cur.fetchone()      # FIXME
-while new_rtags_asterisk:
-    print ('rtag error: ', new_rtags_asterisk)
-    #find similar tags in newrat, return a list of those tags (4/6 similar?)    
-    similar_tags = find_similar(new_rtag, 5)
-    print similar_tags
-    solution = input('Can you address this problem (y/n)? ')
-    if solution == 'y':
-        update_table(newdata, field, new_info)
-        update_newdata(newdata, field, new_info)
-        record_problem('rtag asterisk error', 'y', olddata, newdata, 'new data')
-        print("Don't forget to record your change on the hard copy of the datasheet, too!")
-    else:
-        record_problem('rtag asterisk error', 'n', None, None, None)
+        new_rtags_asterisk = cur.fetchone()      # FIXME
+        while new_rtags_asterisk:
+            print ('rtag error: ', new_rtags_asterisk)
+            #find similar tags in newrat, return a list of those tags (4/6 similar?)    
+            similar_tags = find_similar(new_rtag, 5)
+            print similar_tags
+            solution = input('Can you address this problem (y/n)? ')
+            if solution == 'y':
+                update_table(newdata, field, new_info)
+                update_newdata(newdata, field, new_info)
+                record_problem('rtag asterisk error', 'y', olddata, newdata, 'new data')
+                print("Don't forget to record your change on the hard copy of the datasheet, too!")
+            else:
+                record_problem('rtag asterisk error', 'n', None, None, None)
         
+     # Use newrata table to check that all new LEFT tags are indicated with an asterisk 
+     #/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
+     #    tag using a subset of the tag number. MYSQL Workbench has a search box that can 
+     #    be used to try different parts of the tag number, once you run this next query.
+     #SELECT * FROM  queries.newrata;
+     # FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
+     cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
+     new.ltag, new.note3
+     FROM queries.newdata new 
+     LEFT JOIN queries.newrat USING (ltag)
+     WHERE newrat.ltag IS NULL AND new.ltag <> ''""")
 
-# Use newrata table to check that all new LEFT tags are indicated with an asterisk 
-#/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
-#    tag using a subset of the tag number. MYSQL Workbench has a search box that can 
-#    be used to try different parts of the tag number, once you run this next query.
-#SELECT * FROM  queries.newrata;
-# FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
-cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
-new.ltag, new.note3
-FROM queries.newdata new 
-LEFT JOIN queries.newrat USING (ltag)
-WHERE newrat.ltag IS NULL AND new.ltag <> ''""")
-
-new_ltags_asterisk = cur.fetchone()      # FIXME
-while new_ltags_asterisk:
-    print ('ltag error: ', new_ltags_asterisk)
-    #find similar tags in newrat, return a list of those tags (4/6 similar?)    
-    similar_tags = find_similar(new_ltag, 7)
-    print similar_tags
-    solution = input('Can you address this problem (y/n)? ')
-    if solution == 'y':
-        update_table(newdata, field, new_info)
-        update_newdata(newdata, field, new_info)
-        record_problem('ltag asterisk error', 'y', olddata, newdata, 'new data')
-        print("Don't forget to record your change on the hard copy of the datasheet, too!")
-    else:
-        record_problem('ltag asterisk error', 'n', None, None, None)
+     new_ltags_asterisk = cur.fetchone()      # FIXME
+     while new_ltags_asterisk:
+         print ('ltag error: ', new_ltags_asterisk)
+         #find similar tags in newrat, return a list of those tags (4/6 similar?)    
+         similar_tags = find_similar(new_ltag, 7)
+         print similar_tags
+         solution = input('Can you address this problem (y/n)? ')
+         if solution == 'y':
+             update_table(newdata, field, new_info)
+             update_newdata(newdata, field, new_info)
+             record_problem('ltag asterisk error', 'y', olddata, newdata, 'new data')
+             print("Don't forget to record your change on the hard copy of the datasheet, too!")
+         else:
+             record_problem('ltag asterisk error', 'n', None, None, None)
         
-# Flag any cases where there is an entry for BOTH rtag and ltag AND where they differ 
-# in the presence of an asterisk. Where an individual IS a recapture AND has a NEW tag,
-# the old tag must be updated in the database and in newrat. The old tag can be pushed
-# over to prevrt or prevlt. A record should be made in the ErrorLog.
-cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
-new.ltag, new.note3
-FROM queries.newdata new 
-WHERE new.ltag IS NOT NULL AND new.note2 != new.note3""")
+    # Flag any cases where there is an entry for BOTH rtag and ltag AND where they differ 
+    # in the presence of an asterisk. Where an individual IS a recapture AND has a NEW tag,
+    # the old tag must be updated in the database and in newrat. The old tag can be pushed
+    # over to prevrt or prevlt. A record should be made in the ErrorLog.
+    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
+    new.ltag, new.note3
+    FROM queries.newdata new 
+    WHERE new.ltag IS NOT NULL AND new.note2 != new.note3""")
+    
+    changed_tags = cur.fetchone()
+    while changed_tags:
+        print ('A tag has changed: ', changed_tags)
+        # find old tag in the database using the tag that has remained consistent. Change the old tag
+        # to the new one. Update the database to push old tag into prev tag.
+        # record change in the ErrorLog
+        
+    # Use newrata table to check for consistency in species and sex for each tagged individual 
+    cur.execute("""SELECT newrat.period, newrat.plot, newdata.plot, newrat.species, 
+    newdata.species AS new_sp, newrat.sex, newdata.sex AS new_sex, newrat.rtag
+    FROM queries.newrat 
+    INNER JOIN queries.newdata USING (rtag)
+    WHERE ((newrat.species<>newdata.species) AND (newrat.rtag=newdata.rtag)) 
+    OR ((newrat.sex <> newdata.sex))""")
 
-changed_tags = cur.fetchone()
-while changed_tags:
-    print ('A tag has changed: ', changed_tags)
-    # find old tag in the database using the tag that has remained consistent. Change the old tag
-    # to the new one. Update the database to push old tag into prev tag.
-    # record change in the ErrorLog
+    spp_sex_issues = cur.fetchone()
+    while spp_sex_issues:
+        print('An error in species or sex has been detected: ', spp_sex_issues)
+        err = input('Is this a species or a sex problem (spp/sex)? ')
+        # find all other records of the individual, return data
+        solution = input('Can you address this problem (y/n)? ')
+        if solution == 'y':
+            where = input('Where will you fix the problem (newdata/Database)? ')
+            if where == 'newdata':
+                update_table(newdata, field, new_info)
+                update_newdata(newdata, field, new_info)
+                record_problem(err, 'y', olddata, newdata, where)
+                print("Don't forget to record your change on the hard copy of the datasheet, too!")
+            elif where == 'database':
+                update_table(database, field, new_info)
+                update_table(newrat, field, new_info)
+                record_problem(err, 'y', olddata, newdata, where)
+            else:
+                record_problem(err, 'n', None, None, None)
+                
+    # FINISHED ERROR CHECKING, append to database
+    # Add ID column to clean newdat that starts with the next integer 
+    # This step shouldn't be necessary if the Rodents.ID column is properly formatted as AUTO_INCREMENT
+    cur.execute("ALTER TABLE queries.newdata ADD ID2 INT AUTO_INCREMENT PRIMARY KEY FIRST")
+    cur.execute("ALTER TABLE queries.newdata ADD ID INT FIRST")
+    cur.execute("UPDATE queries.newdata SET ID = ID2 + (SELECT MAX(Rodents.ID) FROM Portal.Rodents)")
+    cur.execute("ALTER TABLE queries.newdata DROP newdata.ID2")
 
-# Use newrata table to check for consistency in species and sex for each tagged individual 
-cur.execute("""SELECT newrat.period, newrat.plot, newdata.plot, newrat.species, 
-newdata.species AS new_sp, newrat.sex, newdata.sex AS new_sex, newrat.rtag
-FROM queries.newrat 
-INNER JOIN queries.newdata USING (rtag)
-WHERE ((newrat.species<>newdata.species) AND (newrat.rtag=newdata.rtag)) 
-OR ((newrat.sex <> newdata.sex))""")
+    # Finally, append clean data to Rodents table */
+    cur.execute("INSERT INTO Portal.Rodents SELECT newdata.* FROM queries.newdata")
+    con.commit()
 
-spp_sex_issues = cur.fetchone()
-while spp_sex_issues:
-    print('An error in species or sex has been detected: ', spp_sex_issues)
-    err = input('Is this a species or a sex problem (spp/sex)? ')
-    # find all other records of the individual, return data
-    solution = input('Can you address this problem (y/n)? ')
-    if solution == 'y':
-        where = input('Where will you fix the problem (newdata/Database)? ')
-        if where == 'newdata':
-            update_table(newdata, field, new_info)
-            update_newdata(newdata, field, new_info)
-            record_problem(err, 'y', olddata, newdata, where)
-            print("Don't forget to record your change on the hard copy of the datasheet, too!")
-        elif where == 'database':
-            update_table(database, field, new_info)
-            update_table(newrat, field, new_info)
-            record_problem(err, 'y', olddata, newdata, where)
-    else:
-        record_problem(err, 'n', None, None, None)
-
-# FINISHED ERROR CHECKING, append to database
-# Add ID column to clean newdat that starts with the next integer 
-# This step shouldn't be necessary if the Rodents.ID column is properly formatted as AUTO_INCREMENT
-cur.execute("ALTER TABLE queries.newdata ADD ID2 INT AUTO_INCREMENT PRIMARY KEY FIRST")
-cur.execute("ALTER TABLE queries.newdata ADD ID INT FIRST")
-cur.execute("UPDATE queries.newdata SET ID = ID2 + (SELECT MAX(Rodents.ID) FROM Portal.Rodents)")
-cur.execute("ALTER TABLE queries.newdata DROP newdata.ID2")
-
-# Finally, append clean data to Rodents table */
-cur.execute("INSERT INTO Portal.Rodents SELECT newdata.* FROM queries.newdata")
-con.commit()
-
-print ('Finished checking for problems. Your data has been appended to the database on Serenity.')
+    print ('Finished checking for problems. Your data has been appended to the database on Serenity.')
+    
