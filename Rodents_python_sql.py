@@ -21,7 +21,9 @@ def compare_lines(line1, line2):
     elif line1 != line2:
         opt1 = line1
         opt2 = line2
-        print 'opt1 = ', line1, ', opt2 = ', line2, ', or enter a new data line'
+        print opt1
+        print opt2
+        print 'Do you want opt1, opt2, or a new line of data? '
         use_data = input('please enter correct data: ')
         return use_data
 
@@ -109,7 +111,7 @@ if __name__ == '__main__':
     filename1 = input('please enter location of data entered by recorder #1: ')
     filename2 = input('please enter location of data entered by recorder #2: ')
 
-    newdat1 = np.genfromtxt(filename1, dtype = None, delimiter = ',', names = True)
+    newdat1 = np.genfromtxt(filename1, dtype = None, delimiter = ',', names = True, dtype = [('mo','<i4'),('dy','<i4'),('yr','<i4'),('period','<i4'),('plot','<i4'),('note1','<i4'),('stake','<i4'),('species','|S2'),('sex','|S1'),('age','|S1'),('reprod','|S1'),('testes','|S1'),('vagina','|S1'),('pregnant','|S1'),('nipples','|S1'),('lactation','|S1'),('hfl','<i4'),('wgt','<i4'),('tag','|S6'),('note2','|S1'),('ltag','|S6'),('note3','|S6'),('prevrt','|S6'),('prevlet','|S6'),('nestdir','|S6'),('neststk','<i4'),('note4','|S2'),('note5','|S1')])
     newdat2 = np.genfromtxt(filename2, dtype = None, delimiter = ',', names = True)
 
     # compare double-entered data and write a new datafile to use
@@ -122,10 +124,6 @@ if __name__ == '__main__':
         # Write compared_data to a csv file to be saved in the Portal folders.
         new_filename = input('What do you want to call the new file?: ')
         save_data(newdata, new_filename)
-
-        #practice data
-        newdata = [[8,6,2011,396,1,None,45,'DM','F',None,None,None,'S',None,None,None,36,31,'000178','*','000179','*',None,None,None,None,None,None],
-           [8,6,2011,396,2,None,47,'PP','F','Z',None,None,None,None,None,None,22,20,'0B0D15',None,None,None,None,None,None,None,None,None,None]]
 
         # PART TWO: Connect to the database on the server
         # Use new data to query the database for potential problems before appending
