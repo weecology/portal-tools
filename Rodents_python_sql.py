@@ -133,80 +133,80 @@ if __name__ == '__main__':
         next_line = compare_lines(newdat1[row], newdat2[row])
         newdata.append(next_line)
 
-        # Write compared_data to a csv file to be saved in the Portal folders.
-        new_filename = input('What do you want to call the new file?: ')
-        save_data(newdata, new_filename)
+    # Write compared_data to a csv file to be saved in the Portal folders.
+    new_filename = input('What do you want to call the new file?: ')
+    save_data(newdata, new_filename)
 
-        # PART TWO: Connect to the database on the server
-        # Use new data to query the database for potential problems before appending
-        user = input('What is your username?: ')
-        yourpassword = input('Please enter your password: ')
+    # PART TWO: Connect to the database on the server
+    # Use new data to query the database for potential problems before appending
+    user = input('What is your username?: ')
+    yourpassword = input('Please enter your password: ')
         
-        con = dbapi.connect(host = 'serenity.bluezone.usu.edu',
-                            port = 1995,
-                            user = user,
-                            passwd = yourpassword)
+    con = dbapi.connect(host = 'serenity.bluezone.usu.edu',
+                        port = 1995,
+                        user = user,
+                        passwd = yourpassword)
 
-        cur = con.cursor()
+    cur = con.cursor()
         
-        upload_newdata(newdata)
+    upload_newdata(newdata)
 
-        # Create newrata table for queries which contains only the last 5 years of data
-        cur.execute("""DROP TABLE IF EXISTS queries.newrat""") 
-        cur.execute("""CREATE TABLE queries.newrat 
-        SELECT Rodents.* 
-        FROM Portal.Rodents 
-        WHERE Rodents.period > ((SELECT Max(Rodents.period) FROM Portal.Rodents) - 60) 
-        ALTER TABLE queries.newrat ADD PRIMARY KEY (ID)""")
+    # Create newrata table for queries which contains only the last 5 years of data
+    cur.execute("""DROP TABLE IF EXISTS queries.newrat""") 
+    cur.execute("""CREATE TABLE queries.newrat 
+    SELECT Rodents.* 
+    FROM Portal.Rodents 
+    WHERE Rodents.period > ((SELECT Max(Rodents.period) FROM Portal.Rodents) - 60) 
+    ALTER TABLE queries.newrat ADD PRIMARY KEY (ID)""")
         
-        # Use newrata table to check that all old tags are NOT indicated with an asterisk
-        # Problem occurs when an already existing tag HAS an asterisk
-        cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
-        new.sex, new.rtag, new.note2, new.ltag, new.note3
-        FROM queries.newdata new 
-        LEFT JOIN queries.newrat ON new.rtag = newrat.tag
-        WHERE newrat.tag > 0""")
+    # Use newrata table to check that all old tags are NOT indicated with an asterisk
+    # Problem occurs when an already existing tag HAS an asterisk
+    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
+    new.sex, new.rtag, new.note2, new.ltag, new.note3
+    FROM queries.newdata new 
+    LEFT JOIN queries.newrat ON new.rtag = newrat.tag
+    WHERE newrat.tag > 0""")
 
-        oldtags_no_asterisk = cur.fetchone()   # FIXME
-        while oldtags_no_asterisk:
-            print ('Old tag error: ', oldtags_no_asterisk)
-            solution = input('Can you address this problem (y/n)? ')
-            if solution == 'y':
-                #find data in newdata table and in the newdata python file and update it
-                update_table(newdata, field, new_info) 
-                update_newdata(newdata, field, new_info)
-                record_problem('old tag error', 'y', olddata, newdata, 'new data')
-                print ("Don't forget to record your change on the hard copy of the datasheet, too!")
-            else:
-                record_problem('old tag error', 'n', None, None, None)
+    oldtags_no_asterisk = cur.fetchone()   # FIXME
+    while oldtags_no_asterisk:
+        print ('Old tag error: ', oldtags_no_asterisk)
+        solution = input('Can you address this problem (y/n)? ')
+        if solution == 'y':
+        #find data in newdata table and in the newdata python file and update it
+            update_table(newdata, field, new_info) 
+            update_newdata(newdata, field, new_info)
+            record_problem('old tag error', 'y', olddata, newdata, 'new data')
+            print ("Don't forget to record your change on the hard copy of the datasheet, too!")
+        else:
+            record_problem('old tag error', 'n', None, None, None)
         
 
-        # Use newrata table to check that all new RIGHT tags are indicated with an asterisk
-        #/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
-        #    tag using a subset of the tag number. MYSQL Workbench has a search box that can 
-        #    be used to try different parts of the tag number, once you run this next query.
-        #SELECT * FROM  queries.newrata;
-        # FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
-        cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
-        new.rtag, new.note2, new.ltag, new.note3
-        FROM queries.newdata new 
-        LEFT JOIN queries.newrat USING (rtag)
-        WHERE newrat.rtag IS NULL AND new.rtag <> ''""")
+    # Use newrata table to check that all new RIGHT tags are indicated with an asterisk
+    #/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
+    #    tag using a subset of the tag number. MYSQL Workbench has a search box that can 
+    #    be used to try different parts of the tag number, once you run this next query.
+    #SELECT * FROM  queries.newrata;
+    # FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
+    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
+    new.rtag, new.note2, new.ltag, new.note3
+    FROM queries.newdata new 
+    LEFT JOIN queries.newrat USING (rtag)
+    WHERE newrat.rtag IS NULL AND new.rtag <> ''""")
 
-        new_rtags_asterisk = cur.fetchone()      # FIXME
-        while new_rtags_asterisk:
-            print ('rtag error: ', new_rtags_asterisk)
-            #find similar tags in newrat, return a list of those tags (4/6 similar?)    
-            similar_tags = find_similar(new_rtag, 5)
-            print similar_tags
-            solution = input('Can you address this problem (y/n)? ')
-            if solution == 'y':
-                update_table(newdata, field, new_info)
-                update_newdata(newdata, field, new_info)
-                record_problem('rtag asterisk error', 'y', olddata, newdata, 'new data')
-                print("Don't forget to record your change on the hard copy of the datasheet, too!")
-            else:
-                record_problem('rtag asterisk error', 'n', None, None, None)
+    new_rtags_asterisk = cur.fetchone()      # FIXME
+    while new_rtags_asterisk:
+        print ('rtag error: ', new_rtags_asterisk)
+        #find similar tags in newrat, return a list of those tags (4/6 similar?)    
+        similar_tags = find_similar(new_rtag, 5)
+        print similar_tags
+        solution = input('Can you address this problem (y/n)? ')
+        if solution == 'y':
+            update_table(newdata, field, new_info)
+            update_newdata(newdata, field, new_info)
+            record_problem('rtag asterisk error', 'y', olddata, newdata, 'new data')
+            print("Don't forget to record your change on the hard copy of the datasheet, too!")
+        else:
+            record_problem('rtag asterisk error', 'n', None, None, None)
         
      # Use newrata table to check that all new LEFT tags are indicated with an asterisk 
      #/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
