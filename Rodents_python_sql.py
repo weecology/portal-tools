@@ -6,6 +6,15 @@ import MySQLdb as dbapi
 
 
 # Functions:
+def get_data(filename,i):
+    wb = xlrd.open_workbook(filename)
+
+    sh = wb.sheet_by_index(i)
+    newdat = []
+    for row in range(sh.nrows):
+        newdat.append(sh.row_values(row))
+    return newdat  
+    
 def save_data(data, new_filename):
     '''input the list of data that should be saved and a string with the new filename
     for example, newdat404.csv'''
@@ -113,18 +122,8 @@ if __name__ == '__main__':
     print 'Before importing data, make sure both sheets in the excel file have the same number of rows and are in the same order!'
     filename = input('please enter location of data: ')
     
-    wb = xlrd.open_workbook(filename)
-
-    sh = wb.sheet_by_index(0)
-    newdat1 = []
-    for row in range(sh.nrows):
-        newdat1.append(sh.row_values(row))
-    
-    sh = wb.sheet_by_index(1)
-    newdat2 = []
-    for row in range(sh.nrows):
-        newdat2.append(sh.row_values(row))
-    
+    newdat1 = get_data(filename, 0)
+    newdat2 = get_data(filename, 1)
 
     # compare double-entered data and write a new datafile to use
     rows = range(len(newdat1))
