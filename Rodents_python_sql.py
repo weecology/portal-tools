@@ -204,26 +204,26 @@ if __name__ == '__main__':
      #    be used to try different parts of the tag number, once you run this next query.
      #SELECT * FROM  queries.newrata;
      # FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
-     cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
-     new.ltag, new.note3
-     FROM queries.newdata new 
-     LEFT JOIN queries.newrat USING (ltag)
-     WHERE newrat.ltag IS NULL AND new.ltag <> ''""")
+    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
+    new.ltag, new.note3
+    FROM queries.newdata new 
+    LEFT JOIN queries.newrat USING (ltag)
+    WHERE newrat.ltag IS NULL AND new.ltag <> ''""")
 
-     new_ltags_asterisk = cur.fetchone()      # FIXME
-     while new_ltags_asterisk:
-         print ('ltag error: ', new_ltags_asterisk)
-         #find similar tags in newrat, return a list of those tags (4/6 similar?)    
-         similar_tags = find_similar(new_ltag, 7)
-         print similar_tags
-         solution = input('Can you address this problem (y/n)? ')
-         if solution == 'y':
-             update_table(newdata, field, new_info)
-             update_newdata(newdata, field, new_info)
-             record_problem('ltag asterisk error', 'y', olddata, newdata, 'new data')
-             print("Don't forget to record your change on the hard copy of the datasheet, too!")
-         else:
-             record_problem('ltag asterisk error', 'n', None, None, None)
+    new_ltags_asterisk = cur.fetchone()      # FIXME
+    while new_ltags_asterisk:
+        print ('ltag error: ', new_ltags_asterisk)
+        #find similar tags in newrat, return a list of those tags (4/6 similar?)    
+        similar_tags = find_similar(new_ltag, 7)
+        print similar_tags
+        solution = input('Can you address this problem (y/n)? ')
+        if solution == 'y':
+            update_table(newdata, field, new_info)
+            update_newdata(newdata, field, new_info)
+            record_problem('ltag asterisk error', 'y', olddata, newdata, 'new data')
+            print("Don't forget to record your change on the hard copy of the datasheet, too!")
+        else:
+            record_problem('ltag asterisk error', 'n', None, None, None)
         
     # Flag any cases where there is an entry for BOTH rtag and ltag AND where they differ 
     # in the presence of an asterisk. Where an individual IS a recapture AND has a NEW tag,
