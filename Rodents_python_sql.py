@@ -109,8 +109,8 @@ if __name__ == '__main__':
     filename1 = input('please enter location of data entered by recorder #1: ')
     filename2 = input('please enter location of data entered by recorder #2: ')
 
-    newdat1 = np.genfromtxt(filename1, dtype = None, delimiter = ',')
-    newdat2 = np.genfromtxt(filename2, dtype = None, delimiter = ',')
+    newdat1 = np.genfromtxt(filename1, dtype = None, delimiter = ',', names = True)
+    newdat2 = np.genfromtxt(filename2, dtype = None, delimiter = ',', names = True)
 
     # compare double-entered data and write a new datafile to use
     rows = range(len(newdat1))
