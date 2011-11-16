@@ -1,7 +1,9 @@
 #/* add new data file to queries database */
+import xlrd
 import numpy as np
 import csv
 import MySQLdb as dbapi
+
 
 # Functions:
 def save_data(data, new_filename):
@@ -16,16 +18,17 @@ def compare_lines(line1, line2):
     '''input two lines of data that should be th same and look for differences.
     if the lines are the same, return line 1. If they are different, give the user
     the choice of which line is correct, line1, line2, or a new line that the user inputs'''
-    if line1 == line2:
-        return line1
-    elif line1 != line2:
-        opt1 = line1
-        opt2 = line2
-        print opt1
-        print opt2
-        print 'Do you want opt1, opt2, or a new line of data? '
-        use_data = input('please enter correct data: ')
-        return use_data
+    while line1:
+        if line1 == line2:
+            return line1
+        elif line1 != line2:
+            opt1 = line1
+            opt2 = line2
+            print opt1
+            print opt2
+            print 'Do you want opt1, opt2, or a new line of data? '
+            use_data = input('please enter correct data: ')
+            return use_data
 
 def upload_newdata(newdata):
     cur.execute("DROP TABLE IF EXISTS queries.newdata")
@@ -107,12 +110,21 @@ if __name__ == '__main__':
     ''' Data should be in a csv file titles newdatXXXa.csv where XXX should be 
     filled in with the period code and a refers to the initials of the person who
     entered the data'''     
-    print 'Before importing data, make sure both files have the same number of rows and are in the same order!'
-    filename1 = input('please enter location of data entered by recorder #1: ')
-    filename2 = input('please enter location of data entered by recorder #2: ')
+    print 'Before importing data, make sure both sheets in the excel file have the same number of rows and are in the same order!'
+    filename = input('please enter location of data: ')
+    
+    wb = xlrd.open_workbook(filename)
 
-    newdat1 = np.genfromtxt(filename1, dtype = None, delimiter = ',', names = True, dtype = [('mo','<i4'),('dy','<i4'),('yr','<i4'),('period','<i4'),('plot','<i4'),('note1','<i4'),('stake','<i4'),('species','|S2'),('sex','|S1'),('age','|S1'),('reprod','|S1'),('testes','|S1'),('vagina','|S1'),('pregnant','|S1'),('nipples','|S1'),('lactation','|S1'),('hfl','<i4'),('wgt','<i4'),('tag','|S6'),('note2','|S1'),('ltag','|S6'),('note3','|S6'),('prevrt','|S6'),('prevlet','|S6'),('nestdir','|S6'),('neststk','<i4'),('note4','|S2'),('note5','|S1')])
-    newdat2 = np.genfromtxt(filename2, dtype = None, delimiter = ',', names = True)
+    sh = wb.sheet_by_index(0)
+    newdat1 = []
+    for row in range(sh.nrows):
+        newdat1.append(sh.row_values(row))
+    
+    sh = wb.sheet_by_index(1)
+    newdat2 = []
+    for row in range(sh.nrows):
+        newdat2.append(sh.row_values(row))
+    
 
     # compare double-entered data and write a new datafile to use
     rows = range(len(newdat1))
