@@ -77,14 +77,131 @@ def upload_newdata(newdata):
     FIELDS TERMINATED BY ',' ENCLOSED BY '"'
     IGNORE 0 LINES""")
     
-def update_newdata():
+def last_five_years():
+    '''the newrat table contains the last 5 years of rodent data. This data is used
+    to check for tag, species and sex errors in the new data. If it exists, this
+    function drops the old 'newrat' table in the database and creates a new one to
+    use for the queries. In additon, this function returns the new table as a list of
+    lists for use in python'''
+    cur.execute("DROP TABLE IF EXISTS queries.newrat") 
+    cur.execute("""CREATE TABLE queries.newrat 
+    SELECT Rodents.* 
+    FROM Portal.Rodents 
+    WHERE Rodents.period > ((SELECT Max(Rodents.period) FROM Portal.Rodents) - 60) 
+    ALTER TABLE queries.newrat ADD PRIMARY KEY (ID)""")
+    newrat = cur.fetchall()
+    return newrat
+    
+def find_oldtag_problem():
+    '''compares the new data with the recent data to try to identify tags that no
+    recaptured individuals have been marked with an asterisk as new. A problem occurs
+    when an existing individual HAS an asterisk. These individuals are returned one 
+    at a time to the user.'''
+    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
+    new.sex, new.rtag, new.note2, new.ltag, new.note3
+    FROM queries.newdata new 
+    LEFT JOIN queries.newrat ON new.rtag = newrat.tag
+    WHERE newrat.tag > 0""")
+    oldtags_no_asterisk = cur.fetchone()
+    while oldtags_no_asterisk:
+        error = 'old tag error: '
+        problem_solve(oldtags_no_asterisk, error)
+    print 'Your recaptured tag problems have been addressed.' #print if problems were found
+    print 'There were no problems with recaptured tags' # print if no problems were found
+    
+def find_newtag_problem(ear):
+    '''Compares new data to the recent data to find tags that look like they are new and
+    makes sure they are indicated with an asterisk. Problems occur when there IS NOT an 
+    asterisk next to a new tag. Check to see if this is a recording error on the asterisk, or
+    if the tag is a recapture but may have been written down incorrectly.'''
+    if ear == 'right':
+        which_ear_index = 1 #FIXME
+    elif ear == 'left':
+        which_ear_index = 2 #FIXME, get query to work for both left and right ears
+    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
+    new.rtag, new.note2, new.ltag, new.note3
+    FROM queries.newdata new 
+    LEFT JOIN queries.newrat USING (rtag)
+    WHERE newrat.rtag IS NULL AND new.rtag <> ''""")
+    new_rtags_asterisk = cur.fetchone()      
+    while new_rtags_asterisk:
+        error = 'rtags_asterisk: '
+        problem_solve(error, new_rtags_asterisk, ear)
+    print 'Your RIGHT/PIT tag errors were addressed'
+    print 'There were no RIGHT/PIT tag errors to address. Good work!'
+    
+def find_changed_tags():
+    # Flag any cases where there is an entry for BOTH rtag and ltag AND where they differ 
+    # in the presence of an asterisk. Where an individual IS a recapture AND has a NEW tag,
+    # the old tag must be updated in the database and in newrat. The old tag can be pushed
+    # over to prevrt or prevlt. A record should be made in the ErrorLog.
+    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
+    new.ltag, new.note3
+    FROM queries.newdata new 
+    WHERE new.ltag IS NOT NULL AND new.note2 != new.note3""")
+    changed_tags = cur.fetchone()
+    while changed_tags:
+        error = 'A tag has changed: '
+        problem_solve (changed_tags, error)
+        # find old tag in the database using the tag that has remained consistent. Change the old tag
+        # to the new one. Update the database to push old tag into prev tag.
+        # record change in the ErrorLog
+    print 'There were no changed tags to address'
+        
+def find_species_sex_problems():
+    '''Finds recaptured individuals whose species and/or sex is not consistent with
+    records in the database. Attempts to resolve these issues. Majority wins, or if
+    individual was captured when reproductive. Otherwise, issue remains unresolved.'''
+    cur.execute("""SELECT newrat.period, newrat.plot, newdata.plot, newrat.species, 
+    newdata.species AS new_sp, newrat.sex, newdata.sex AS new_sex, newrat.rtag
+    FROM queries.newrat 
+    INNER JOIN queries.newdata USING (rtag)
+    WHERE ((newrat.species<>newdata.species) AND (newrat.rtag=newdata.rtag)) 
+    OR ((newrat.sex <> newdata.sex))""")
+    spp_sex_issues = cur.fetchone()
+    while spp_sex_issues:
+        error = 'An error in species or sex has been detected: '
+        problem_solve(spp_sex_issues, error)
+    print 'There were no inconsistencies detected in species or sex of recaptured individuals'
+
+def probelm_solve(data_line, error_message, which_ear_index):
+    '''Hopefully, a universal function which will intake a line of data and a specific 
+    error message and be able to solve that problem. After solving (or not), it will go to
+    another function which will update the appropriate tables and lists and a second function
+    to record the error and the fix in a notes table.'''
+    while data_line:
+        print (error_message, data_line)
+        if error_message == 'rtags_asterisk' or 'ltags_asterisk':
+            similar_tags = find_similar(newtag, which_ear_index)
+            print similar_tags
+        y,n = ('y','n')        
+        solution = input('Can you address this problem (y/n)? ')
+        if solution == 'y': # is this going to cause an 'aliasing' problem?
+            newdata,database = ('newdata','database')
+            location_fix = input('Where would you like to address this problem (newdata/database)? ')
+            if location_fix == 'newdata':
+                update_table(newdata, field, new_info)
+                updata_newdata(newdata, dataline, field, new_info)
+                print ("Don't forget to record your change on the hard copy of the datasheet, too!")
+            elif location_fix == 'database':
+                update_table(newrat, field, new_info)
+                update_table(portal.Rodents, field, new_info) 
+            record_problem(error_message, 'y', data_line, new_info, location_fix)
+        else:
+            record_problem(error_message, 'n', None, None, None)
+    
+def update_newdata(newdata, dataline, field, new_info):
     '''find rodent information in the newdata list of lists and update it where 
     data was flagged as having a problem'''
+    for line in newdata:
+        if line == dataline:
+            line[field] = new_info
+            break
     
 def update_table(table, field, new_info): # FIXME
     '''When a problem is found, update the tables newrat and database with the solution'''
     cur.execute("""UPDATE table SET field = new_info WHERE mo = 'month', dy = 'day', 
-    yr = 'year', period = 'period', plot = 'plot', """)
+    yr = 'year', period = 'period', plot = 'plot', stake = 'stake'""")
     con.commit()
                 
 def record_problem(errorType, solution, oldData, newData, where): #FIXME
@@ -132,6 +249,8 @@ if __name__ == '__main__':
         next_line = compare_lines(newdat1[row], newdat2[row])
         newdata.append(next_line)
 
+    numrows = len(newdata)
+    
     # Write compared_data to a csv file to be saved in the Portal folders.
     new_filename = input('What do you want to call the new file?: ')
     save_data(newdata, new_filename)
@@ -150,135 +269,24 @@ if __name__ == '__main__':
         
     upload_newdata(newdata)
 
-    # Create newrata table for queries which contains only the last 5 years of data
-    cur.execute("""DROP TABLE IF EXISTS queries.newrat""") 
-    cur.execute("""CREATE TABLE queries.newrat 
-    SELECT Rodents.* 
-    FROM Portal.Rodents 
-    WHERE Rodents.period > ((SELECT Max(Rodents.period) FROM Portal.Rodents) - 60) 
-    ALTER TABLE queries.newrat ADD PRIMARY KEY (ID)""")
-        
+    # Create newrata table and python list which contains only the last 5 years of data
+    newrat = last_five_years()
+    
     # Use newrata table to check that all old tags are NOT indicated with an asterisk
     # Problem occurs when an already existing tag HAS an asterisk
-    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
-    new.sex, new.rtag, new.note2, new.ltag, new.note3
-    FROM queries.newdata new 
-    LEFT JOIN queries.newrat ON new.rtag = newrat.tag
-    WHERE newrat.tag > 0""")
+    find_oldtag_problem()
 
-    oldtags_no_asterisk = cur.fetchone()   # FIXME
-    while oldtags_no_asterisk:
-        print ('Old tag error: ', oldtags_no_asterisk)
-        solution = input('Can you address this problem (y/n)? ')
-        if solution == 'y':
-        #find data in newdata table and in the newdata python file and update it
-            update_table(newdata, field, new_info) 
-            update_newdata(newdata, field, new_info)
-            record_problem('old tag error', 'y', olddata, newdata, 'new data')
-            print ("Don't forget to record your change on the hard copy of the datasheet, too!")
-        else:
-            record_problem('old tag error', 'n', None, None, None)
+    #Problem occurs when a new tag DOES NOT have an asterisk
+    find_newtag_problem('right')
+    find_newtag_problem('left')
         
+    # Flag any cases where there is an entry for BOTH rtag and ltag AND where they differ in '*'
+    find_changed_tags()
 
-    # Use newrata table to check that all new RIGHT tags are indicated with an asterisk
-    #/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
-    #    tag using a subset of the tag number. MYSQL Workbench has a search box that can 
-    #    be used to try different parts of the tag number, once you run this next query.
-    #SELECT * FROM  queries.newrata;
-    # FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
-    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
-    new.rtag, new.note2, new.ltag, new.note3
-    FROM queries.newdata new 
-    LEFT JOIN queries.newrat USING (rtag)
-    WHERE newrat.rtag IS NULL AND new.rtag <> ''""")
-
-    new_rtags_asterisk = cur.fetchone()      # FIXME
-    while new_rtags_asterisk:
-        print ('rtag error: ', new_rtags_asterisk)
-        #find similar tags in newrat, return a list of those tags (4/6 similar?)    
-        similar_tags = find_similar(new_rtag, 5)
-        print similar_tags
-        solution = input('Can you address this problem (y/n)? ')
-        if solution == 'y':
-            update_table(newdata, field, new_info)
-            update_newdata(newdata, field, new_info)
-            record_problem('rtag asterisk error', 'y', olddata, newdata, 'new data')
-            print("Don't forget to record your change on the hard copy of the datasheet, too!")
-        else:
-            record_problem('rtag asterisk error', 'n', None, None, None)
-        
-     # Use newrata table to check that all new LEFT tags are indicated with an asterisk 
-     #/* if there is an inconsistency, search newrata for matching tag or a possible typo in the
-     #    tag using a subset of the tag number. MYSQL Workbench has a search box that can 
-     #    be used to try different parts of the tag number, once you run this next query.
-     #SELECT * FROM  queries.newrata;
-     # FIX ANY ERRORS IN THE DATABASE OR IN NEWDAT
-    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
-    new.ltag, new.note3
-    FROM queries.newdata new 
-    LEFT JOIN queries.newrat USING (ltag)
-    WHERE newrat.ltag IS NULL AND new.ltag <> ''""")
-
-    new_ltags_asterisk = cur.fetchone()      # FIXME
-    while new_ltags_asterisk:
-        print ('ltag error: ', new_ltags_asterisk)
-        #find similar tags in newrat, return a list of those tags (4/6 similar?)    
-        similar_tags = find_similar(new_ltag, 7)
-        print similar_tags
-        solution = input('Can you address this problem (y/n)? ')
-        if solution == 'y':
-            update_table(newdata, field, new_info)
-            update_newdata(newdata, field, new_info)
-            record_problem('ltag asterisk error', 'y', olddata, newdata, 'new data')
-            print("Don't forget to record your change on the hard copy of the datasheet, too!")
-        else:
-            record_problem('ltag asterisk error', 'n', None, None, None)
-        
-    # Flag any cases where there is an entry for BOTH rtag and ltag AND where they differ 
-    # in the presence of an asterisk. Where an individual IS a recapture AND has a NEW tag,
-    # the old tag must be updated in the database and in newrat. The old tag can be pushed
-    # over to prevrt or prevlt. A record should be made in the ErrorLog.
-    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
-    new.ltag, new.note3
-    FROM queries.newdata new 
-    WHERE new.ltag IS NOT NULL AND new.note2 != new.note3""")
-    
-    changed_tags = cur.fetchone()
-    while changed_tags:
-        print ('A tag has changed: ', changed_tags)
-        # find old tag in the database using the tag that has remained consistent. Change the old tag
-        # to the new one. Update the database to push old tag into prev tag.
-        # record change in the ErrorLog
-        
     # Use newrata table to check for consistency in species and sex for each tagged individual 
-    cur.execute("""SELECT newrat.period, newrat.plot, newdata.plot, newrat.species, 
-    newdata.species AS new_sp, newrat.sex, newdata.sex AS new_sex, newrat.rtag
-    FROM queries.newrat 
-    INNER JOIN queries.newdata USING (rtag)
-    WHERE ((newrat.species<>newdata.species) AND (newrat.rtag=newdata.rtag)) 
-    OR ((newrat.sex <> newdata.sex))""")
-
-    spp_sex_issues = cur.fetchone()
-    while spp_sex_issues:
-        print('An error in species or sex has been detected: ', spp_sex_issues)
-        err = input('Is this a species or a sex problem (spp/sex)? ')
-        # find all other records of the individual, return data
-        solution = input('Can you address this problem (y/n)? ')
-        if solution == 'y':
-            where = input('Where will you fix the problem (newdata/Database)? ')
-            if where == 'newdata':
-                update_table(newdata, field, new_info)
-                update_newdata(newdata, field, new_info)
-                record_problem(err, 'y', olddata, newdata, where)
-                print("Don't forget to record your change on the hard copy of the datasheet, too!")
-            elif where == 'database':
-                update_table(database, field, new_info)
-                update_table(newrat, field, new_info)
-                record_problem(err, 'y', olddata, newdata, where)
-            else:
-                record_problem(err, 'n', None, None, None)
+    find_species_sex_problems()
                 
-    # FINISHED ERROR CHECKING, append to database
+    # PART THREE: Finished error checking, append to database
     # Add ID column to clean newdat that starts with the next integer 
     # This step shouldn't be necessary if the Rodents.ID column is properly formatted as AUTO_INCREMENT
     cur.execute("ALTER TABLE queries.newdata ADD ID2 INT AUTO_INCREMENT PRIMARY KEY FIRST")
@@ -286,9 +294,8 @@ if __name__ == '__main__':
     cur.execute("UPDATE queries.newdata SET ID = ID2 + (SELECT MAX(Rodents.ID) FROM Portal.Rodents)")
     cur.execute("ALTER TABLE queries.newdata DROP newdata.ID2")
 
-    # Finally, append clean data to Rodents table */
+    # Finally, append clean data to Rodents table 
     cur.execute("INSERT INTO Portal.Rodents SELECT newdata.* FROM queries.newdata")
-    # numrows = NUMBER OF ROWS IN NEWDATA APPENDED TO RODENTS     FIX ME!
     con.commit()
 
     print 'Finished checking for problems. You have appended ', numrows, ' to the Rodents on Serenity.'
