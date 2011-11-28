@@ -115,18 +115,24 @@ def find_newtag_problem(ear):
     asterisk next to a new tag. Check to see if this is a recording error on the asterisk, or
     if the tag is a recapture but may have been written down incorrectly.'''
     if ear == 'right':
-        which_ear_index = 1 #FIXME
-    elif ear == 'left':
-        which_ear_index = 2 #FIXME, get query to work for both left and right ears
-    cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
-    new.rtag, new.note2, new.ltag, new.note3
-    FROM queries.newdata new 
-    LEFT JOIN queries.newrat USING (rtag)
-    WHERE newrat.rtag IS NULL AND new.rtag <> ''""")
-    new_rtags_asterisk = cur.fetchone()      
-    while new_rtags_asterisk:
+        which_ear_index = 18 #FIXME
+        cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
+        new.rtag, new.note2, new.ltag, new.note3
+        FROM queries.newdata new 
+        LEFT JOIN queries.newrat USING (rtag)
+        WHERE newrat.rtag IS NULL AND new.rtag <> ''""")
         error = 'rtags_asterisk: '
-        problem_solve(error, new_rtags_asterisk, ear)
+    elif ear == 'left':
+        which_ear_index = 20 #FIXME, check index numbers
+        cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
+        new.rtag, new.note2, new.ltag, new.note3
+        FROM queries.newdata new 
+        LEFT JOIN queries.newrat USING (ltag)
+        WHERE newrat.ltag IS NULL AND new.ltag <> ''""")
+        error = 'ltags_asterisk: '
+    new_tags_asterisk = cur.fetchone()      
+    while new_tags_asterisk:
+        problem_solve(error, new_tags_asterisk, which_ear_index)
     print 'Your RIGHT/PIT tag errors were addressed'
     print 'There were no RIGHT/PIT tag errors to address. Good work!'
     
@@ -172,23 +178,25 @@ def probelm_solve(data_line, error_message, which_ear_index):
     while data_line:
         print (error_message, data_line)
         if error_message == 'rtags_asterisk' or 'ltags_asterisk':
-            similar_tags = find_similar(newtag, which_ear_index)
+            similar_tags = find_similar(data_line[which_ear_index], which_ear_index, newrat)
             print similar_tags
         y,n = ('y','n')        
         solution = input('Can you address this problem (y/n)? ')
         if solution == 'y': # is this going to cause an 'aliasing' problem?
+            new_info = input('Please enter the new data line, starting with "species", separated by commas: ')
+            record_ID = ('Please enter the dy, mo, yr, period, plot, and stake of the data you wish to change, separated by commas: ') #contains the date, period, plot and stake
             newdata,database = ('newdata','database')
             location_fix = input('Where would you like to address this problem (newdata/database)? ')
             if location_fix == 'newdata':
-                update_table(newdata, field, new_info)
-                updata_newdata(newdata, dataline, field, new_info)
+                update_table(newdata, field, new_info, record)
+                update_newdata(newdata, dataline, field, new_info)
                 print ("Don't forget to record your change on the hard copy of the datasheet, too!")
             elif location_fix == 'database':
-                update_table(newrat, field, new_info)
-                update_table(portal.Rodents, field, new_info) 
-            record_problem(error_message, 'y', data_line, new_info, location_fix)
+                update_table(newrat, field, new_info, record)
+                update_table(portal.Rodents, field, new_info, record) 
+            record_problem(error_message, 'y', record, new_info, location_fix) #FIX ME, SEE BELOW
         else:
-            record_problem(error_message, 'n', None, None, None)
+            record_problem(error_message, 'n', data_line, None, None)
     
 def update_newdata(newdata, dataline, field, new_info):
     '''find rodent information in the newdata list of lists and update it where 
@@ -198,38 +206,67 @@ def update_newdata(newdata, dataline, field, new_info):
             line[field] = new_info
             break
     
-def update_table(table, field, new_info): # FIXME
+def update_table(table, field, new_info, r): # FIXME
     '''When a problem is found, update the tables newrat and database with the solution'''
-    cur.execute("""UPDATE table SET field = new_info WHERE mo = 'month', dy = 'day', 
-    yr = 'year', period = 'period', plot = 'plot', stake = 'stake'""")
+    sql = cur.execute("""UPDATE table SET species = %s, sex = %s, age = %s, reprod = %s, testes = %s,
+    vagina = %s, pregnant = %s, nipples = %s, lactation = %s, hfl = %d, wgt = %d, rtag = %s, 
+    note2 = %s, ltag = %s, note3 = %s, note4 = %s, note5=%s WHERE mo = r[1], dy = r[0], 
+    yr = r[2], period = r[3], plot = r[4], stake = r[5]""" %(new_info))
+    print sql
     con.commit()
                 
-def record_problem(errorType, solution, oldData, newData, where): #FIXME
+def record_problem(errorType, solution, record, new_info, where): #FIXME, NEED A BETTER SYSTEM
     '''When a problem is flagged, this records the error raised, if a solution was 
     reached (Y/N), and what the old data was, what it was changed to, and where it 
     was changed (datasheet/database)'''
-    cur.execute("""UPDATE ErrorLog SET date = date, error = errorType, solution = solution,
-    oldData = oldData, newData = newData, where = database""")
+    cur.execute("""INSERT INTO ErrorLog SET date = date, error = errorType, solution = solution,
+    oldData = record, newData = new_info, where = database""")
     con.commit()
     
-def find_similar(new_tag, which_ear_index): #FIXME!!
-    """look for tags in newrat that match rtag in 4/6 places. return a list of those
-    tags along with important information: mo, dy, yr, plot, sp, sex, rtag, ltag"""
-    cur.execute("""SELECT newrat.period, newrat.plot, newrat.stake, newrat.species,
-    newrat.sex, newrat.tag, newrat.ltag, FROM queries.newrat """)
-    newrat = cur.fetchall()
-    similar_data = is_similar(newrat, new_tag, which_ear)
-    return similar_data
-    
-def is_similar(data, new_tag, which_ear_index): # FIXME!!!
-    '''identify tags which are similar at 4/6 locations'''
-    tags = dict(map(lambda i: (i,1),data[which_ear_index])).keys()
-    #tag_data = find tags similar at 4/6 locations
-    #tag_data = find tags where 8/B or 0/D have been substituted
-    return tag_data
+def find_similar(ear_tag, which_ear_index, newrat): #FIXME!!    
+    '''identify tags which are similar at 4/6 locations and where tags may be similar if a common typo
+    has been made such as 8 for B, 0 for D or vice-versa.'''
+    tags = dict(map(lambda i: (i,1),data[which_ear_index])).keys() # returns a set of pre-existing tags
+    tag_list = []
+    for tag in tags:
+        match, sim_tag = is_similar(ear_tag, tag)
+        if match >= 4:
+            tag_list.append(sim_tag) 
+    rep_tags = find_similar_replacement(ear_tag, tag)
+    tag_list.extend(rep_tags)
+    # What I'm missing is a way to identify and return these lines--need to know if they are the same species, plots, sex, or other information that will help me determine if its truly a similar tag, or actually the same tag disguised as a typo!
+    return tag_list
 
+def is_similar(ear_tag, tag):
+    '''This function takes the existing ear_tag and compares it to the set of already existing tags 
+    from the past five years and compares them place by place. Returns the number of locations at which
+    there is a match between the new tag and the existing tag.'''
+    match = 0
+    index = range(0,6)
+    for i in index:
+        if ear_tag[i] == tag[i]:
+            match += 1
+    return match, tag
+        
+def find_similar_replacement(ear_tag, tag): #FIX ME
+    '''This function is supposed to look for similar tags where numbers/letters that are often confused
+    may have been written down wrong. 8 and B, 0 and D.'''
+    if str.count(ear_tag, 'B') > 0:
+        rep_tag = str.replace(ear_tag, 'B', '8')
+        match, tag = is_similar(rep_tag, tag)
+    elif str.count(ear_tag, '8') > 0:
+        rep_tag = str.replace(ear_tag, '8', 'B')
+        match, tag = is_similar(rep_tag, tag)
+    elif str.count(ear_tag, 'D') > 0:
+        rep_tag = str.replace(ear_tag, 'D', '0')
+        match, tag = is_similar(rep_tag, tag)
+    elif str.count(ear_tag, '0') > 0:
+        rep_tag = str.replace(ear_tag, '0', 'D')
+        match, tag = is_similar(rep_tag, tag)
+    return tag
+        
+        
 
-# Execute commands if running directly:    
 if __name__ == '__main__':        
     
     # PART ONE: DATA ENTRY ERROR CHECKING 
