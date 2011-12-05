@@ -289,7 +289,7 @@ if __name__ == '__main__':
     numrows = len(newdata)
     
     # Write compared_data to a csv file to be saved in the Portal folders.
-    new_filename = input('What do you want to call the new file?: ')
+    new_filename = input('What do you want to call the new file? (Example, "NEWDAT398.csv"): ')
     save_data(newdata, new_filename)
 
     # PART TWO: Connect to the database on the server
