@@ -92,7 +92,7 @@ def last_five_years():
     newrat = cur.fetchall()
     return newrat
     
-def fix_scabbed_eartags(newdata): #THIS FUNCTION HAS A LOT OF REDUNDANCY? IS THERE A BETTER WAY?
+def fix_scabbed_eartags(newdata): #THIS FUNCTION HAS A LOT OF REDUNDANCY. IS THERE A BETTER WAY?
     '''looks for eartags that have been recorded with an 'X' for unreadable digit(s). Sometimes scabbing
     occurs and the field biologist can't read all the numbers. This should only occur on one eartag, so 
     the second one can be used to find the correct number of the obscured ear tag. We can identify eartagged
@@ -169,17 +169,18 @@ def find_newtag_problem(ear):
         FROM queries.newdata new 
         LEFT JOIN queries.newrat USING (rtag)
         WHERE newrat.rtag IS NULL AND new.rtag <> ''""")
-        error = 'rtags_asterisk: '
+        error = 'rtags_asterisk'
     elif ear == 'left':
-        which_ear_index = 20 #FIXME, check index numbers
+        which_ear_index = 20 #FIXME
         cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, 
         new.rtag, new.note2, new.ltag, new.note3
         FROM queries.newdata new 
         LEFT JOIN queries.newrat USING (ltag)
         WHERE newrat.ltag IS NULL AND new.ltag <> ''""")
-        error = 'ltags_asterisk: '
+        error = 'ltags_asterisk'
     new_tags_asterisk = cur.fetchone()      
     while new_tags_asterisk:
+        print 'A problem with ' + str(error), ' has been detected.'
         problem_solve(error, new_tags_asterisk, which_ear_index)
     print 'Your RIGHT/PIT tag errors were addressed'
     print 'There were no RIGHT/PIT tag errors to address. Good work!'
@@ -227,6 +228,7 @@ def probelm_solve(data_line, error_message, which_ear_index):
         print (error_message, data_line)
         if error_message == 'rtags_asterisk' or 'ltags_asterisk':
             similar_tags = find_similar(data_line[which_ear_index], which_ear_index, newrat)
+            print 'A list of potential similar tags has been found:'
             print similar_tags
         y,n = ('y','n')        
         solution = input('Can you address this problem (y/n)? ')
@@ -260,7 +262,7 @@ def update_table(table, field, new_info, r): # FIXME
     vagina = %s, pregnant = %s, nipples = %s, lactation = %s, hfl = %d, wgt = %d, rtag = %s, 
     note2 = %s, ltag = %s, note3 = %s, note4 = %s, note5=%s WHERE mo = r[1], dy = r[0], 
     yr = r[2], period = r[3], plot = r[4], stake = r[5]""" %(new_info))
-    print sql
+    print sql #keep a print statement?
     con.commit()
                 
 def record_problem(errorType, solution, record, new_info, where): #FIXME, NEED A BETTER SYSTEM
@@ -281,9 +283,28 @@ def find_similar(ear_tag, which_ear_index, newrat): #FIXME!!
         if match >= 4:
             tag_list.append(sim_tag) 
     rep_tags = find_similar_replacement(ear_tag, tag)
-    tag_list.extend(rep_tags)
-    # What I'm missing is a way to identify and return these lines--need to know if they are the same species, plots, sex, or other information that will help me determine if its truly a similar tag, or actually the same tag disguised as a typo!
-    return tag_list
+    for tag in rep_tags:
+        tag_list.append(tag)
+    # What I'm missing is a way to identify and return these lines--need to know if they are the same 
+    #species, plots, sex, or other information that will help me determine if its truly a similar tag, 
+    #or actually the same tag disguised as a typo!
+    similar_data = []
+    for tag in tag_list: 
+        if which_ear_index == 18:
+            cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
+            new.sex, new.rtag, new.note2, new.ltag, new.note3
+            FROM queries.newrat new 
+            WHERE new.tag == tag""")
+            data = cur.fetchall()
+        if which_ear_index == 20:
+            cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
+            new.sex, new.rtag, new.note2, new.ltag, new.note3
+            FROM queries.newrat new 
+            WHERE new.tag == tag""")
+            data = cur.fetchall()
+        similar_data.extend(data)
+    similar_data.sort(key = lambda x: x[which_ear_index])
+    return similar_data
 
 def is_similar(ear_tag, tag):
     '''This function takes the existing ear_tag and compares it to the set of already existing tags 
@@ -296,7 +317,7 @@ def is_similar(ear_tag, tag):
             match += 1
     return match, tag
         
-def find_similar_replacement(ear_tag, tag): #FIX ME
+def find_similar_replacement(ear_tag, tag): #FIX ME, make sure this is useful!
     '''This function is supposed to look for similar tags where numbers/letters that are often confused
     may have been written down wrong. 8 and B, 0 and D.'''
     if str.count(ear_tag, 'B') > 0:
