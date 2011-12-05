@@ -92,6 +92,54 @@ def last_five_years():
     newrat = cur.fetchall()
     return newrat
     
+def fix_scabbed_eartags(newdata): #THIS FUNCTION HAS A LOT OF REDUNDANCY? IS THERE A BETTER WAY?
+    '''looks for eartags that have been recorded with an 'X' for unreadable digit(s). Sometimes scabbing
+    occurs and the field biologist can't read all the numbers. This should only occur on one eartag, so 
+    the second one can be used to find the correct number of the obscured ear tag. We can identify eartagged
+    individuals by seeing if both rtag and ltag are recorded. There are always 2 eartags and only 1 pit
+    tag.'''
+    for line in newdata:
+        rtag = line[18]
+        ltag = line[20]
+        if ltag != None:
+            rscab = rtag.count('X')
+            lscab = ltag.count('X')
+            if rscab == 0 and lscab == 0:
+                continue
+            elif rscab > 0:
+                #look up ltag in newrat and re-record rtag
+                cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
+                new.sex, new.rtag, new.note2, new.ltag, new.note3
+                FROM queries.newdata new 
+                LEFT JOIN queries.newrat ON new.ltag = newrat.ltag
+                WHERE new.ltag == ltag""")
+                data = cur.fetchall()
+                print 'An obscured eartag has been detected for rtag on' 
+                print line
+                print 'Possible matches include: '
+                print data
+                correct_tag = input('Please enter the correct tag: ') 
+                print "Don't forget to update the hard copy of the datasheet!"
+                cur.execute("""UPDATE queries.newdata SET rtag = %s WHERE ltag == ltag""" %(correct_tag))
+                con.commit()
+            elif lscab > 0:
+                #look up rtag in newrat and re-record ltag
+                cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
+                new.sex, new.rtag, new.note2, new.ltag, new.note3
+                FROM queries.newdata new 
+                LEFT JOIN queries.newrat ON new.rtag = newrat.tag
+                WHERE new.tag == rtag""")
+                data = cur.fetchall()
+                print 'An obscured eartag has been detected for ltag on ' 
+                print line   
+                print 'Possible matches include: '
+                print data
+                correct_tag = input('Please enter the correct tag: ') 
+                print "Don't forget to update the hard copy of the datasheet!"
+                cur.execute("""UPDATE queries.newdata SET rtag = %s WHERE ltag == ltag""" %(correct_tag))
+                con.commit()
+
+    
 def find_oldtag_problem():
     '''compares the new data with the recent data to try to identify tags that no
     recaptured individuals have been marked with an asterisk as new. A problem occurs
@@ -295,7 +343,7 @@ if __name__ == '__main__':
     # PART TWO: Connect to the database on the server
     # Use new data to query the database for potential problems before appending
     print 'You will now be connected to the server'
-    user = input('What is your server username?: ')
+    user = input('What is your username?: ')
     yourpassword = input('Please enter your password: ')
         
     con = dbapi.connect(host = 'serenity.bluezone.usu.edu',
@@ -309,6 +357,10 @@ if __name__ == '__main__':
 
     # Create newrata table and python list which contains only the last 5 years of data
     newrat = last_five_years()
+    
+    # If an ear tag cannot be read, sometimes it will be recorded with an 'X' for the unreadable digit(s)
+    # Look for any instances of this, and replace with the correct digit(s)
+    fix_scabbed_eartags(newdata)
     
     # Use newrata table to check that all old tags are NOT indicated with an asterisk
     # Problem occurs when an already existing tag HAS an asterisk
