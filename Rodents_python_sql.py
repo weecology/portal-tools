@@ -294,7 +294,8 @@ if __name__ == '__main__':
 
     # PART TWO: Connect to the database on the server
     # Use new data to query the database for potential problems before appending
-    user = input('What is your username?: ')
+    print 'You will now be connected to the server'
+    user = input('What is your server username?: ')
     yourpassword = input('Please enter your password: ')
         
     con = dbapi.connect(host = 'serenity.bluezone.usu.edu',
