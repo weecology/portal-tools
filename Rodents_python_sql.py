@@ -37,7 +37,6 @@ def compare_lines(line1, line2):
             print opt2
             print 'Do you want opt1, opt2, or a new line of data? '
             use_data = input('please enter correct data: ')
-    print 'Finished checking your files for double-entry errors.'
     return use_data
 
 def upload_newdata(newdata):
@@ -355,6 +354,7 @@ if __name__ == '__main__':
     for row in rows:
         next_line = compare_lines(newdat1[row], newdat2[row])
         newdata.append(next_line)
+    print 'Finished checking your files for double-entry errors.'
 
     numrows = len(newdata)
     
