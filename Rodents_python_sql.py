@@ -37,7 +37,8 @@ def compare_lines(line1, line2):
             print opt2
             print 'Do you want opt1, opt2, or a new line of data? '
             use_data = input('please enter correct data: ')
-            return use_data
+    print 'Finished checking your files for double-entry errors.'
+    return use_data
 
 def upload_newdata(newdata):
     cur.execute("DROP TABLE IF EXISTS queries.newdata")
@@ -344,7 +345,7 @@ if __name__ == '__main__':
     entered the data'''     
     print 'Before importing data, make sure both sheets in the excel file have the same number of rows and are in the same order!'
     filename = input('please enter location of data: ')
-    
+    #if IOError, please ask for filename again. Let the user know the location or extension of the file was not correct.
     newdat1 = get_data(filename, 0)
     newdat2 = get_data(filename, 1)
 
