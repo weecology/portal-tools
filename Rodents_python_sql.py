@@ -1,5 +1,6 @@
 #/* add new data file to queries database */
 import xlrd
+import xlwt
 import numpy as np
 import csv
 import MySQLdb as dbapi
@@ -8,7 +9,6 @@ import MySQLdb as dbapi
 # Functions:
 def get_data(filename,i):
     wb = xlrd.open_workbook(filename)
-
     sh = wb.sheet_by_index(i)
     newdat = []
     for row in range(sh.nrows):
@@ -17,11 +17,16 @@ def get_data(filename,i):
     
 def save_data(data, new_filename):
     '''input the list of data that should be saved and a string with the new filename
-    for example, newdat404.csv'''
-    data_file = open(new_filename,'wb') 
-    w = csv.writer(data_file,delimiter=',')
-    w.writerows(data)
-    data_file.close()
+    for example, newdat404.xls'''
+    wbk = xlwt.Workbook()
+    sheet = wbk.add_sheet('rodent data')
+    rows = range(0,len(newdata))
+    cols = range(0,len(newdata[0]))
+    for row in rows:
+        for col in cols:
+            sheet.write(row,col,newdata[row][col])
+    wbk.save(new_filename)
+
 
 def compare_lines(line1, line2):
     '''input two lines of data that should be th same and look for differences.
@@ -359,7 +364,7 @@ if __name__ == '__main__':
     numrows = len(newdata)
     
     # Write compared_data to a csv file to be saved in the Portal folders.
-    new_filename = input('What do you want to call the new file? (Example, "NEWDAT398.csv"): ')
+    new_filename = input('What do you want to call the new file? (Example, "pathname/NEWDAT398.xls"): ')
     save_data(newdata, new_filename)
 
     # PART TWO: Connect to the database on the server
