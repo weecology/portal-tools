@@ -295,9 +295,7 @@ def find_similar(ear_tag, which_ear_index, newrat): #FIXME!!
     rep_tags = find_similar_replacement(ear_tag, tag)
     for tag in rep_tags:
         tag_list.append(tag)
-    # What I'm missing is a way to identify and return these lines--need to know if they are the same 
-    #species, plots, sex, or other information that will help me determine if its truly a similar tag, 
-    #or actually the same tag disguised as a typo!
+    # identify and return lines in newrat that contain these potential matches to the suspect tag
     similar_data = []
     for tag in tag_list: 
         if which_ear_index == 18:
@@ -396,7 +394,7 @@ if __name__ == '__main__':
     
     # Use newrata table to check that all old tags are NOT indicated with an asterisk
     # Problem occurs when an already existing tag HAS an asterisk
-    find_oldtag_problem()
+    find_oldtag_problem(user)
 
     #Problem occurs when a new tag DOES NOT have an asterisk
     find_newtag_problem('right', user)
