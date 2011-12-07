@@ -28,7 +28,8 @@ def save_data(data, new_filename):
     wbk.save(new_filename)
 
 
-def compare_lines(line1, line2):
+def compare_lines(line1, line2): #FIX ME: NEED A WAY TO RESOLVE INCORRECT 'ANSWERS' WITHOUT 
+                                 #KICKING THE USER COMPLETELY OUT OF THE FUNCTION
     '''input two lines of data that should be th same and look for differences.
     if the lines are the same, return line 1. If they are different, give the user
     the choice of which line is correct, line1, line2, or a new line that the user inputs'''
@@ -145,11 +146,12 @@ def fix_scabbed_eartags(newdata): #THIS FUNCTION HAS A LOT OF REDUNDANCY. IS THE
                 con.commit()
 
     
-def find_oldtag_problem():
+def find_oldtag_problem(username):
     '''compares the new data with the recent data to try to identify tags that no
     recaptured individuals have been marked with an asterisk as new. A problem occurs
     when an existing individual HAS an asterisk. These individuals are returned one 
     at a time to the user.'''
+    ear = None
     cur.execute("""SELECT new.period, new.plot, new.stake, new.species, 
     new.sex, new.rtag, new.note2, new.ltag, new.note3
     FROM queries.newdata new 
@@ -158,11 +160,11 @@ def find_oldtag_problem():
     oldtags_no_asterisk = cur.fetchone()
     while oldtags_no_asterisk:
         error = 'old tag error: '
-        problem_solve(oldtags_no_asterisk, error)
+        problem_solve(oldtags_no_asterisk, error, ear, username)
     print 'Your recaptured tag problems have been addressed.' #print if problems were found
     print 'There were no problems with recaptured tags' # print if no problems were found
     
-def find_newtag_problem(ear):
+def find_newtag_problem(ear, username):
     '''Compares new data to the recent data to find tags that look like they are new and
     makes sure they are indicated with an asterisk. Problems occur when there IS NOT an 
     asterisk next to a new tag. Check to see if this is a recording error on the asterisk, or
@@ -186,15 +188,16 @@ def find_newtag_problem(ear):
     new_tags_asterisk = cur.fetchone()      
     while new_tags_asterisk:
         print 'A problem with ' + str(error), ' has been detected.'
-        problem_solve(error, new_tags_asterisk, which_ear_index)
+        problem_solve(error, new_tags_asterisk, which_ear_index, username)
     print 'Your RIGHT/PIT tag errors were addressed'
     print 'There were no RIGHT/PIT tag errors to address. Good work!'
     
-def find_changed_tags():
+def find_changed_tags(username):
     # Flag any cases where there is an entry for BOTH rtag and ltag AND where they differ 
     # in the presence of an asterisk. Where an individual IS a recapture AND has a NEW tag,
     # the old tag must be updated in the database and in newrat. The old tag can be pushed
     # over to prevrt or prevlt. A record should be made in the ErrorLog.
+    ear = None
     cur.execute("""SELECT new.period, new.plot, new.stake, new.species, new.sex, new.rtag, new.note2, 
     new.ltag, new.note3
     FROM queries.newdata new 
@@ -202,16 +205,17 @@ def find_changed_tags():
     changed_tags = cur.fetchone()
     while changed_tags:
         error = 'A tag has changed: '
-        problem_solve (changed_tags, error)
+        problem_solve (changed_tags, error, ear, username)
         # find old tag in the database using the tag that has remained consistent. Change the old tag
         # to the new one. Update the database to push old tag into prev tag.
         # record change in the ErrorLog
     print 'There were no changed tags to address'
         
-def find_species_sex_problems():
+def find_species_sex_problems(username):
     '''Finds recaptured individuals whose species and/or sex is not consistent with
     records in the database. Attempts to resolve these issues. Majority wins, or if
     individual was captured when reproductive. Otherwise, issue remains unresolved.'''
+    ear = None
     cur.execute("""SELECT newrat.period, newrat.plot, newdata.plot, newrat.species, 
     newdata.species AS new_sp, newrat.sex, newdata.sex AS new_sex, newrat.rtag
     FROM queries.newrat 
@@ -221,10 +225,10 @@ def find_species_sex_problems():
     spp_sex_issues = cur.fetchone()
     while spp_sex_issues:
         error = 'An error in species or sex has been detected: '
-        problem_solve(spp_sex_issues, error)
+        problem_solve(spp_sex_issues, error, ear, username)
     print 'There were no inconsistencies detected in species or sex of recaptured individuals'
 
-def probelm_solve(data_line, error_message, which_ear_index):
+def probelm_solve(data_line, error_message, which_ear_index,username):
     '''Hopefully, a universal function which will intake a line of data and a specific 
     error message and be able to solve that problem. After solving (or not), it will go to
     another function which will update the appropriate tables and lists and a second function
@@ -249,9 +253,9 @@ def probelm_solve(data_line, error_message, which_ear_index):
             elif location_fix == 'database':
                 update_table(newrat, field, new_info, record)
                 update_table(portal.Rodents, field, new_info, record) 
-            record_problem(error_message, 'y', record, new_info, location_fix) #FIX ME, SEE BELOW
+            record_problem(error_message, 'y', record, data_line, new_info, location_fix, username) #FIX ME, SEE FUNCTION BELOW
         else:
-            record_problem(error_message, 'n', data_line, None, None)
+            record_problem(error_message, 'n', None, data_line, None, None, username)
     
 def update_newdata(newdata, dataline, field, new_info):
     '''find rodent information in the newdata list of lists and update it where 
@@ -270,12 +274,13 @@ def update_table(table, field, new_info, r): # FIXME
     print sql #keep a print statement?
     con.commit()
                 
-def record_problem(errorType, solution, record, new_info, where): #FIXME, NEED A BETTER SYSTEM
+def record_problem(errorType, solution, record, dataline, new_info, changeLoc, username): #FIXME, NEED A BETTER SYSTEM
     '''When a problem is flagged, this records the error raised, if a solution was 
     reached (Y/N), and what the old data was, what it was changed to, and where it 
     was changed (datasheet/database)'''
-    cur.execute("""INSERT INTO ErrorLog SET date = date, error = errorType, solution = solution,
-    oldData = record, newData = new_info, where = database""")
+    cur.execute("""INSERT INTO ErrorLog SET period = dataline[3], error = errorType, solution = solution, 
+    where = changeLoc, who = username, plot = dataline[4], species = dataline[7], sex = dataline[8], rtag = dataline[18],
+    ltag = dataline[20], change = new_info""")
     con.commit()
     
 def find_similar(ear_tag, which_ear_index, newrat): #FIXME!!    
@@ -394,14 +399,14 @@ if __name__ == '__main__':
     find_oldtag_problem()
 
     #Problem occurs when a new tag DOES NOT have an asterisk
-    find_newtag_problem('right')
-    find_newtag_problem('left')
+    find_newtag_problem('right', user)
+    find_newtag_problem('left', user)
         
     # Flag any cases where there is an entry for BOTH rtag and ltag AND where they differ in '*'
-    find_changed_tags()
+    find_changed_tags(user)
 
     # Use newrata table to check for consistency in species and sex for each tagged individual 
-    find_species_sex_problems()
+    find_species_sex_problems(user)
                 
     # PART THREE: Finished error checking, append to database
     # Add ID column to clean newdat that starts with the next integer 
