@@ -241,9 +241,11 @@ def probelm_solve(data_line, error_message, which_ear_index,username):
             print similar_tags
         y,n = ('y','n')        
         solution = input('Can you address this problem (y/n)? ')
-        if solution == 'y': # is this going to cause an 'aliasing' problem?
-            new_info = input('Please enter the new data line, starting with "species", separated by commas: ')
-            record_ID = ('Please enter the dy, mo, yr, period, plot, and stake of the data you wish to change, separated by commas: ') #contains the date, period, plot and stake
+        if solution == 'y': 
+            #FIX ME: This line should work, but seems error-prone
+            new_info = input('Please enter the new data line, starting with "species", separated by commas: ') 
+            #contains the date, period, plot and stake
+            record_ID = input('Please enter the dy, mo, yr, period, plot, and stake of the data you wish to change, separated by commas: ') 
             newdata,database = ('newdata','database')
             location_fix = input('Where would you like to address this problem (newdata/database)? ')
             if location_fix == 'newdata':
@@ -253,7 +255,7 @@ def probelm_solve(data_line, error_message, which_ear_index,username):
             elif location_fix == 'database':
                 update_table(newrat, field, new_info, record)
                 update_table(portal.Rodents, field, new_info, record) 
-            record_problem(error_message, 'y', record, data_line, new_info, location_fix, username) #FIX ME, SEE FUNCTION BELOW
+            record_problem(error_message, 'y', record, data_line, new_info, location_fix, username) #FIX ME, SEE 'record_problem' FUNCTION BELOW
         else:
             record_problem(error_message, 'n', None, data_line, None, None, username)
     
@@ -347,12 +349,12 @@ def find_similar_replacement(ear_tag, tag): #FIX ME, make sure this is useful!
 if __name__ == '__main__':        
     
     # PART ONE: DATA ENTRY ERROR CHECKING 
-    ''' Data should be in a csv file titles newdatXXXa.csv where XXX should be 
-    filled in with the period code and a refers to the initials of the person who
-    entered the data'''     
+    # Data should be in an excel file titled NEWDATxxx where xxx should be filled in with the period code    
     print 'Before importing data, make sure both sheets in the excel file have the same number of rows and are in the same order!'
-    filename = input('please enter location of data: ')
-    #if IOError, please ask for filename again. Let the user know the location or extension of the file was not correct.
+    filename = input('please enter location of data (Example, "pathname\NEWDAT398.xls"): ')
+    
+    # read each sheet in separately for error checking
+    #if IOError, please ask for filename again. Let the user know the location or extension of the file was not correct. FIXME
     newdat1 = get_data(filename, 0)
     newdat2 = get_data(filename, 1)
 
@@ -363,8 +365,6 @@ if __name__ == '__main__':
         next_line = compare_lines(newdat1[row], newdat2[row])
         newdata.append(next_line)
     print 'Finished checking your files for double-entry errors.'
-
-    numrows = len(newdata)
     
     # Write compared_data to a csv file to be saved in the Portal folders.
     new_filename = input('What do you want to call the new file? (Example, "pathname/NEWDAT398.xls"): ')
@@ -423,5 +423,6 @@ if __name__ == '__main__':
     cur.execute("INSERT INTO Portal.Rodents SELECT newdata.* FROM queries.newdata")
     con.commit()
 
+    numrows = len(newdata)
     print 'Finished checking for problems. You have appended ', numrows, ' to the Rodents on Serenity.'
     
