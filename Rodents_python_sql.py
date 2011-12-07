@@ -385,7 +385,7 @@ if __name__ == '__main__':
         
     upload_newdata(newdata)
 
-    # Create newrata table and python list which contains only the last 5 years of data
+    # Create newrata table and python list which contains only the last 5 years of data    
     newrat = last_five_years()
     
     # If an ear tag cannot be read, sometimes it will be recorded with an 'X' for the unreadable digit(s)
@@ -394,6 +394,7 @@ if __name__ == '__main__':
     
     # Use newrata table to check that all old tags are NOT indicated with an asterisk
     # Problem occurs when an already existing tag HAS an asterisk
+    print 'Looking for problems with new tag data'
     find_oldtag_problem(user)
 
     #Problem occurs when a new tag DOES NOT have an asterisk
@@ -401,13 +402,17 @@ if __name__ == '__main__':
     find_newtag_problem('left', user)
         
     # Flag any cases where there is an entry for BOTH rtag and ltag AND where they differ in '*'
+    print 'Looking for eartags which have been lost and replaced'
     find_changed_tags(user)
 
     # Use newrata table to check for consistency in species and sex for each tagged individual 
+    print 'Looking for inconsistencies in the species or sex of an individual'
     find_species_sex_problems(user)
                 
     # PART THREE: Finished error checking, append to database
-    # Add ID column to clean newdat that starts with the next integer 
+    print 'Finished error checking. Getting ready to append your data to the database'
+    
+    # Add ID column to clean newdata that starts with the next integer 
     # This step shouldn't be necessary if the Rodents.ID column is properly formatted as AUTO_INCREMENT
     cur.execute("ALTER TABLE queries.newdata ADD ID2 INT AUTO_INCREMENT PRIMARY KEY FIRST")
     cur.execute("ALTER TABLE queries.newdata ADD ID INT FIRST")
