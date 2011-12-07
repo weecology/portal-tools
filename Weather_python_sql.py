@@ -93,7 +93,7 @@ def save_weather_file(data, filename):
 if __name__ == '__main__':
     
 #location of new weather file;  For example, use 'F:\AdvProj_Portal\Met395.dat'
-    filename = input('Where is your most recent weather file located? ')
+    filename = input('Where is your most recent weather file located? (Example: "pathname\MET397.dat")')
     weather = import_datafile(filename)
 
     weather_to_add = compile_weather_data(weather)
