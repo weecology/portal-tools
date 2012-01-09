@@ -30,6 +30,8 @@ def save_data(data, new_filename):
 
 def compare_lines(line1, line2): #FIX ME: NEED A WAY TO RESOLVE INCORRECT 'ANSWERS' WITHOUT 
                                  #KICKING THE USER COMPLETELY OUT OF THE FUNCTION
+                                 #ADD A FUNCTION WHEN LINES DON'T MATCH TO SHOW WHERE THEY DON'T MATCH?
+                                   # difference = filter(lambda x:x not in list2,list1)
     '''input two lines of data that should be th same and look for differences.
     if the lines are the same, return line 1. If they are different, give the user
     the choice of which line is correct, line1, line2, or a new line that the user inputs'''
@@ -43,7 +45,7 @@ def compare_lines(line1, line2): #FIX ME: NEED A WAY TO RESOLVE INCORRECT 'ANSWE
             print opt2
             print 'Do you want opt1, opt2, or a new line of data? '
             use_data = input('please enter correct data: ')
-    return use_data
+            return use_data
 
 def upload_newdata(newdata):
     cur.execute("DROP TABLE IF EXISTS queries.newdata")
